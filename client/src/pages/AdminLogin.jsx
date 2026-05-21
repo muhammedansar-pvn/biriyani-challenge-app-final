@@ -5,6 +5,8 @@ import { Lock, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +26,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/admin/login', {
+      const res = await axios.post(`${API_URL}/api/admin/login`, {
         email,
         password
       });

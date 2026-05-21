@@ -6,6 +6,8 @@ import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCirc
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,7 +23,7 @@ const AdminDashboard = () => {
       }
 
       try {
-        const res = await axios.get('http://localhost:5000/api/orders', {
+        const res = await axios.get(`${API_URL}/api/orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setOrders(res.data.data);
@@ -46,7 +48,7 @@ const AdminDashboard = () => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       try {
         const token = localStorage.getItem('adminToken');
-        await axios.delete(`http://localhost:5000/api/orders/${id}`, {
+        await axios.delete(`${API_URL}/api/orders/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setOrders(orders.filter(order => order._id !== id));
