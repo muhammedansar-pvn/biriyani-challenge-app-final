@@ -19,7 +19,17 @@ import Footer from '../components/Footer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-
+// Resilient phone number cleaning utility
+const cleanPhoneNumber = (phone) => {
+  const digits = phone.replace(/\D/g, ''); // strip all non-digits
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits.slice(2);
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  return digits;
+};
 
 const LandingPage = () => {
   const [formData, setFormData] = useState({
@@ -42,14 +52,15 @@ const LandingPage = () => {
 
   const handleTrack = async (e) => {
     e.preventDefault();
-    if (!/^[0-9]{10}$/.test(trackPhone)) {
+    const finalTrackPhone = cleanPhoneNumber(trackPhone);
+    if (!/^[0-9]{10}$/.test(finalTrackPhone)) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
     }
 
     setIsTrackLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/api/orders/track/${trackPhone}`);
+      const res = await axios.get(`${API_URL}/api/orders/track/${finalTrackPhone}`);
       if (res.data.success) {
         setTrackResult(res.data.data);
         if (res.data.data.length === 0) {
@@ -72,13 +83,19 @@ const LandingPage = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === 'packs'
-          ? Math.max(1, parseInt(value) || 1)
-          : value,
-    }));
+    setFormData((prev) => {
+      let val = value;
+      if (name === 'packs') {
+        val = Math.max(1, parseInt(value) || 1);
+      } else if (name === 'phone') {
+        // Allow numbers, spaces, plus, hyphens, and parentheses for flexible typing
+        val = value.replace(/[^0-9+\s()-]/g, '');
+      }
+      return {
+        ...prev,
+        [name]: val
+      };
+    });
   };
 
   // =========================
@@ -124,23 +141,23 @@ const LandingPage = () => {
   // =========================
   // Validation
   // =========================
-  const validateForm = () => {
-    if (!formData.name.trim()) {
+  const validateForm = (data) => {
+    if (!data.name.trim()) {
       toast.error('Please enter your name');
       return false;
     }
 
-    if (!/^[0-9]{10}$/.test(formData.phone)) {
+    if (!/^[0-9]{10}$/.test(data.phone)) {
       toast.error('Enter a valid 10 digit phone number');
       return false;
     }
 
-    if (!formData.place.trim()) {
+    if (!data.place.trim()) {
       toast.error('Please enter your location');
       return false;
     }
 
-    if (formData.packs < 1) {
+    if (data.packs < 1) {
       toast.error('Minimum 1 pack required');
       return false;
     }
@@ -156,14 +173,21 @@ const LandingPage = () => {
 
     if (isSubmitting) return;
 
-    if (!validateForm()) return;
+    // Clean phone number before validation & API post
+    const cleanedPhone = cleanPhoneNumber(formData.phone);
+    const updatedFormData = {
+      ...formData,
+      phone: cleanedPhone
+    };
+
+    if (!validateForm(updatedFormData)) return;
 
     setIsSubmitting(true);
 
     try {
       const res = await axios.post(
         `${API_URL}/api/orders`,
-        formData
+        updatedFormData
       );
 
       if (res.data.success) {
@@ -319,7 +343,7 @@ const LandingPage = () => {
                       type="tel"
                       name="phone"
                       required
-                      maxLength={10}
+                      maxLength={15}
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="9876543210"
@@ -494,10 +518,10 @@ const LandingPage = () => {
                 <input
                   type="tel"
                   required
-                  maxLength={10}
+                  maxLength={15}
                   value={trackPhone}
-                  onChange={(e) => setTrackPhone(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Enter 10-digit Phone Number"
+                  onChange={(e) => setTrackPhone(e.target.value.replace(/[^0-9+\s()-]/g, ''))}
+                  placeholder="Enter Phone Number"
                   className="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:border-brand-lime focus:ring-1 focus:ring-brand-lime font-semibold"
                 />
                 <button
