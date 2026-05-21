@@ -57,15 +57,26 @@ const Navbar = ({ onTrackClick }) => {
           <div className="px-3 pt-2 pb-4 space-y-1 sm:px-4">
             <a 
               href="#home" 
-              onClick={() => setIsOpen(false)} 
-              className="text-slate-700 hover:bg-green-50/60 block px-4 py-2.5 rounded-xl text-base font-bold transition-all"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
+                setTimeout(() => {
+                  const element = document.getElementById('home');
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }, 150);
+              }} 
+              className="text-slate-700 hover:bg-green-50/60 block px-4 py-2.5 rounded-xl text-base font-bold transition-all cursor-pointer"
             >
               Home
             </a>
             <button 
               onClick={() => {
                 setIsOpen(false);
-                onTrackClick();
+                setTimeout(() => {
+                  onTrackClick();
+                }, 150);
               }}
               className="text-slate-700 hover:bg-green-50/60 block w-full text-left px-4 py-2.5 rounded-xl text-base font-bold transition-all cursor-pointer bg-transparent border-0 flex items-center gap-2"
             >
@@ -74,8 +85,17 @@ const Navbar = ({ onTrackClick }) => {
             </button>
             <a 
               href="#order" 
-              onClick={() => setIsOpen(false)} 
-              className="text-brand-lime bg-green-50/80 block px-4 py-2.5 rounded-xl text-base font-extrabold transition-all"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
+                setTimeout(() => {
+                  const element = document.getElementById('order');
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }, 150);
+              }} 
+              className="text-brand-lime bg-green-50/80 block px-4 py-2.5 rounded-xl text-base font-extrabold transition-all cursor-pointer"
             >
               Order Now
             </a>

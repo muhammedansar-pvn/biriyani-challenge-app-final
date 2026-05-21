@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Search,
   X,
+  CheckCircle,
 } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -37,6 +38,7 @@ const LandingPage = () => {
   const [trackPhone, setTrackPhone] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
+  const [orderSuccessData, setOrderSuccessData] = useState(null);
 
   const handleTrack = async (e) => {
     e.preventDefault();
@@ -166,7 +168,7 @@ const LandingPage = () => {
 
       if (res.data.success) {
         toast.success('Order placed successfully! 🍛');
-        sendWhatsApp();
+        setOrderSuccessData(res.data.data);
         resetForm();
       } else {
         toast.error('Failed to place order');
@@ -561,6 +563,86 @@ const LandingPage = () => {
                 )}
               </div>
             )}
+          </motion.div>
+        </div>
+      )}
+
+      {/* ORDER SUCCESSFUL MODAL */}
+      {orderSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-green-100 text-center relative"
+          >
+            <button
+              onClick={() => setOrderSuccessData(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-brand-lime mx-auto mb-5 border border-green-100/50 shadow-sm">
+              <CheckCircle size={36} className="text-brand-lime animate-bounce" />
+            </div>
+
+            <h3 className="text-2xl font-black text-slate-950 mb-1">
+              Order Confirmed! 🍛
+            </h3>
+            <p className="text-slate-500 font-medium text-xs mb-5">
+              Your order has been recorded successfully. Complete confirmation via WhatsApp below.
+            </p>
+
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-left space-y-2.5 mb-6 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Name:</span>
+                <span className="text-slate-800 font-extrabold">{orderSuccessData.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Packs:</span>
+                <span className="text-slate-800 font-extrabold">
+                  {orderSuccessData.packs} x {orderSuccessData.packType === 'family' ? 'Family Pack' : 'One Pack'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Total Cost:</span>
+                <span className="text-brand-lime font-black">₹{orderSuccessData.total}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Location:</span>
+                <span className="text-slate-800 font-extrabold">{orderSuccessData.place}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const message = `
+*New Biriyani Order!* 🍛
+
+*Name:* ${orderSuccessData.name}
+*Phone:* ${orderSuccessData.phone}
+*Place:* ${orderSuccessData.place}
+*Pack Type:* ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}
+*Quantity:* ${orderSuccessData.packs} Pack(s)
+*Total Amount:* ₹${orderSuccessData.total}
+*Note:* ${orderSuccessData.note || 'None'}
+`;
+                const encodedMessage = encodeURIComponent(message);
+                window.open(`https://wa.me/919744623768?text=${encodedMessage}`, '_blank');
+                setOrderSuccessData(null);
+              }}
+              className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-extrabold py-3.5 rounded-xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center gap-2 cursor-pointer text-sm"
+            >
+              <MessageSquare size={18} />
+              Complete Order on WhatsApp
+            </button>
+
+            <button
+              onClick={() => setOrderSuccessData(null)}
+              className="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+            >
+              Close Window
+            </button>
           </motion.div>
         </div>
       )}
