@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand-lime: #15803d; /* Deep forest green */
+  --color-brand-yellow: #16a34a; /* Vibrant leaf green */
+  --color-brand-dark: #f0fdf4; /* Fresh light mint green background */
+  --font-sans: 'Inter', sans-serif;
+  --font-cooper: 'Cooper Black', 'Alfa Slab One', serif;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-dark text-slate-800 font-sans antialiased;
+  }
+}
+
+.font-cooper {
+  font-family: var(--font-cooper);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(22, 163, 74, 0.12);
+  box-shadow: 0 10px 30px -10px rgba(22, 163, 74, 0.08), 0 1px 1px rgba(22, 163, 74, 0.02);
+}
+
+.bg-pattern {
+  background-image: radial-gradient(rgba(22, 163, 74, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
