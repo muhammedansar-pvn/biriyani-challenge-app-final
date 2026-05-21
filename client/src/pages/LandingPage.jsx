@@ -17,7 +17,7 @@ import {
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -68,7 +68,12 @@ const LandingPage = () => {
         }
       }
     } catch (error) {
-      toast.error('Failed to track orders. Please try again.');
+      console.error('Tracking query failure for URL:', `${API_URL}/api/orders/track/${finalTrackPhone}`, error);
+      const errMsg = error.response?.data?.error ||
+                     error.response?.data?.message || 
+                     error.message || 
+                     'Server is unreachable. Please verify network connection or backend configuration.';
+      toast.error(`Tracking failed: ${errMsg}`);
     } finally {
       setIsTrackLoading(false);
     }
@@ -198,10 +203,12 @@ const LandingPage = () => {
         toast.error('Failed to place order');
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-        'Something went wrong. Please try again.'
-      );
+      console.error('Order post failure for URL:', `${API_URL}/api/orders`, error);
+      const errMsg = error.response?.data?.error ||
+                     error.response?.data?.message || 
+                     error.message || 
+                     'Server is unreachable. Please verify backend API is running and connected.';
+      toast.error(`Order Failed: ${errMsg}`);
     } finally {
       setIsSubmitting(false);
     }

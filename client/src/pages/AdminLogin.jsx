@@ -5,7 +5,7 @@ import { Lock, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -37,7 +37,12 @@ const AdminLogin = () => {
         navigate('/admin/dashboard');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid credentials');
+      console.error('Admin login failure for URL:', `${API_URL}/api/admin/login`, error);
+      const errMsg = error.response?.data?.error ||
+                     error.response?.data?.message || 
+                     error.message || 
+                     'Server is unreachable. Please verify backend is running.';
+      toast.error(`Login failed: ${errMsg}`);
     } finally {
       setIsLoading(false);
     }

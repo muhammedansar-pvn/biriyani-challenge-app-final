@@ -6,7 +6,7 @@ import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCirc
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -28,9 +28,18 @@ const AdminDashboard = () => {
         });
         setOrders(res.data.data);
       } catch (error) {
-        toast.error('Session expired. Please login again.');
-        localStorage.removeItem('adminToken');
-        navigate('/admin/login');
+        console.error('Error fetching orders:', error);
+        if (error.response && error.response.status === 401) {
+          toast.error('Session expired. Please login again.');
+          localStorage.removeItem('adminToken');
+          navigate('/admin/login');
+        } else {
+          const errMsg = error.response?.data?.error ||
+                         error.response?.data?.message || 
+                         error.message || 
+                         'Server is unreachable. Please verify backend is running.';
+          toast.error(`Failed to fetch orders: ${errMsg}`);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -54,7 +63,12 @@ const AdminDashboard = () => {
         setOrders(orders.filter(order => order._id !== id));
         toast.success('Order deleted successfully');
       } catch (error) {
-        toast.error('Error deleting order');
+        console.error('Order deletion failure for URL:', `${API_URL}/api/orders/${id}`, error);
+        const errMsg = error.response?.data?.error ||
+                       error.response?.data?.message || 
+                       error.message || 
+                       'Server is unreachable.';
+        toast.error(`Error deleting order: ${errMsg}`);
       }
     }
   };
