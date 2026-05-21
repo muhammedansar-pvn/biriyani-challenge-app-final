@@ -9,10 +9,7 @@ const Navbar = ({ onTrackClick }) => {
     <nav className="fixed w-full z-50 bg-[#f0fdf4]/90 backdrop-blur-lg border-b border-green-200/40 shadow-sm transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex-shrink-0 flex items-center gap-2.5">
-            <div className="w-8.5 h-8.5 rounded-full bg-brand-lime flex items-center justify-center text-white font-extrabold text-sm shadow-md shadow-brand-lime/15">
-              BC
-            </div>
+          <div className="flex-shrink-0 flex items-center">
             <span className="font-extrabold text-lg tracking-wide text-slate-900">
               Biriyani <span className="text-brand-lime font-black">Challenge</span>
             </span>
