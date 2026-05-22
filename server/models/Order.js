@@ -33,28 +33,6 @@ const orderSchema = new mongoose.Schema(
       enum: ['single', 'family'],
       default: 'single',
     },
-    paymentMethod: {
-      type: String,
-      enum: ['cod', 'half', 'full'],
-      default: 'full',
-    },
-    paymentStatus: {
-      type: String,
-      enum: ['paid', 'partial', 'pending'],
-      default: 'pending',
-    },
-    amountPaid: {
-      type: Number,
-      default: 0,
-    },
-    razorpayPaymentId: {
-      type: String,
-      default: '',
-    },
-    razorpayOrderId: {
-      type: String,
-      default: '',
-    },
     area: {
       type: String,
       default: '',

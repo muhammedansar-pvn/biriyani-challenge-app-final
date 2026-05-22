@@ -2,13 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// Load env vars BEFORE importing routes (Razorpay needs keys at init)
+// Load env vars BEFORE importing routes
 dotenv.config();
 
 const connectDB = require('./config/db');
 const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
 
 // Connect to database
 connectDB();
@@ -22,7 +21,6 @@ app.use(express.json());
 // Routes
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/payment', paymentRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

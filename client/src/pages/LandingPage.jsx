@@ -12,6 +12,7 @@ import {
   Search,
   X,
   CheckCircle,
+  Calendar,
 } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -341,9 +342,14 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
               </p>
 
               <div className="flex flex-col items-center justify-center mb-10">
-                <div className="bg-brand-lime/10 border border-brand-lime/30 text-brand-lime font-extrabold px-6 py-2.5 rounded-2xl text-sm sm:text-base flex items-center gap-2 mb-8 shadow-lg shadow-brand-lime/5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-brand-lime animate-ping"></span>
-                  Challenge Date: 2026 June 11 (Thursday)
+                <div className="bg-brand-lime/10 border-2 border-brand-lime/40 text-slate-800 font-extrabold px-8 py-3.5 rounded-2xl text-lg sm:text-xl flex items-center gap-3 mb-8 shadow-xl shadow-brand-lime/10 hover:shadow-brand-lime/20 hover:scale-[1.03] transition-all duration-300">
+                  <div className="relative flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-brand-lime animate-pulse" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-brand-lime animate-ping"></span>
+                  </div>
+                  <span>
+                    Challenge Date: <strong className="text-brand-lime font-black underline decoration-2 decoration-brand-yellow/60 underline-offset-4">2026 June 11 (Thursday)</strong>
+                  </span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">

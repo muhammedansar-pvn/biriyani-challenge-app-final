@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCircle, Clock, Banknote, MapPin } from 'lucide-react';
+import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCircle, Clock, MapPin } from 'lucide-react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
@@ -90,7 +90,6 @@ const AdminDashboard = () => {
       'Google Maps Link': order.googleMapsLink || '-',
       'Packs': order.packs,
       'Total Amount': order.total,
-      'Payment Method': 'Cash on Delivery',
       'Note': order.note || '-',
       'Date': new Date(order.createdAt).toLocaleDateString(),
       'Time': new Date(order.createdAt).toLocaleTimeString()
@@ -219,7 +218,6 @@ const AdminDashboard = () => {
                 <th className="px-6 py-4 font-bold">Place</th>
                 <th className="px-6 py-4 font-bold">Packs</th>
                 <th className="px-6 py-4 font-bold">Total Amount</th>
-                <th className="px-6 py-4 font-bold">Payment</th>
                 <th className="px-6 py-4 font-bold">Date & Time</th>
                 <th className="px-6 py-4 font-bold">Action</th>
               </tr>
@@ -267,11 +265,6 @@ const AdminDashboard = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-black text-brand-lime text-base">₹{order.total}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full text-xs font-bold border border-yellow-150">
-                        <Banknote size={12} /> COD
-                      </span>
-                    </td>
                     <td className="px-6 py-4 text-slate-500">
                       <div className="font-semibold text-slate-800">{new Date(order.createdAt).toLocaleDateString()}</div>
                       <div className="text-xs">{new Date(order.createdAt).toLocaleTimeString()}</div>
