@@ -16,8 +16,15 @@ const Footer = () => {
             Made with <Heart size={14} className="fill-brand-lime text-brand-lime" /> by <span className="font-cooper text-brand-lime">SSF</span> Tirur Division
           </div>
           
-          <div className="text-sm text-slate-400 font-medium">
-            &copy; {new Date().getFullYear()} All rights reserved.
+          <div className="text-sm text-slate-400 font-medium flex items-center gap-4">
+            <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
+            <span className="text-slate-300">|</span>
+            <a 
+              href="#/admin" 
+              className="text-slate-450 hover:text-brand-lime transition-colors font-bold flex items-center gap-1"
+            >
+              Admin Portal
+            </a>
           </div>
         </div>
       </div>

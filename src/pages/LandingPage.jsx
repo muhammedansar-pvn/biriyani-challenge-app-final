@@ -821,9 +821,21 @@ ${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLi
                             <span className="font-extrabold text-slate-900 text-sm">
                               {order.packs} x {order.packType === 'family' ? 'Family Pack' : 'One Pack'}
                             </span>
-                            <span className="text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-extrabold uppercase">
-                              Active
-                            </span>
+                            {(() => {
+                              const status = order.status || 'Pending';
+                              let pillClass = 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20';
+                              if (status === 'Confirmed') pillClass = 'bg-blue-500/10 text-blue-600 border border-blue-500/20';
+                              if (status === 'Cooking') pillClass = 'bg-purple-500/10 text-purple-600 border border-purple-500/20';
+                              if (status === 'Out for Delivery') pillClass = 'bg-teal-500/10 text-teal-600 border border-teal-500/20';
+                              if (status === 'Delivered') pillClass = 'bg-green-500/10 text-green-650 border border-green-500/20';
+                              if (status === 'Cancelled') pillClass = 'bg-red-500/10 text-red-600 border border-red-500/20';
+
+                              return (
+                                <span className={`text-[10px] ${pillClass} px-2 py-0.5 rounded-full font-extrabold uppercase`}>
+                                  {status}
+                                </span>
+                              );
+                            })()}
                           </div>
                           <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
                             <span>Placed at:</span>
