@@ -13,8 +13,7 @@ const Footer = () => {
           </div>
           
           <div className="text-sm text-slate-500 flex items-center gap-1 font-bold">
-            Made with <Heart size={14} className="fill-brand-lime text-brand-lime" /> by <span className="font-cooper text-brand-lime">SSF</span> Tirur Division
-          </div>
+            Made with  by <span className="font-cooper text-brand-lime">SSF</span> Tirur Division Event crow          </div>
           
           <div className="text-sm text-slate-400 font-medium flex items-center gap-4">
             <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
