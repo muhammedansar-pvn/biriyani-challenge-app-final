@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap');
+@import url('https://smc.org.in/fonts/keraleeyam.css');
 @import "tailwindcss";
 
 @theme {
@@ -8,6 +9,7 @@
   --color-brand-dark: #f0fdf4; /* Fresh light mint green background */
   --font-sans: 'Inter', sans-serif;
   --font-cooper: 'Cooper Black', 'Alfa Slab One', serif;
+  --font-keraleeyam: 'Keraleeyam', sans-serif;
 }
 
 @layer base {
@@ -18,6 +20,10 @@
 
 .font-cooper {
   font-family: var(--font-cooper);
+}
+
+.font-keraleeyam {
+  font-family: var(--font-keraleeyam);
 }
 
 .glass-panel {
