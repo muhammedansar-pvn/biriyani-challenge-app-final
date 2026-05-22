@@ -73,6 +73,29 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    if (window.confirm('WARNING: Are you sure you want to delete ALL orders? This action cannot be undone.')) {
+      const secondConfirm = window.confirm('Please confirm once more: Do you absolutely want to clear ALL database orders?');
+      if (!secondConfirm) return;
+      
+      try {
+        const token = localStorage.getItem('adminToken');
+        await axios.delete(`${API_URL}/api/orders/clear-all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setOrders([]);
+        toast.success('All orders cleared successfully');
+      } catch (error) {
+        console.error('Clear all orders failure:', error);
+        const errMsg = error.response?.data?.error ||
+                       error.response?.data?.message || 
+                       error.message || 
+                       'Server is unreachable.';
+        toast.error(`Error clearing orders: ${errMsg}`);
+      }
+    }
+  };
+
   const exportToExcel = () => {
     if (orders.length === 0) {
       toast.warning('No orders to export');
@@ -135,6 +158,12 @@ const AdminDashboard = () => {
             className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl transition-all border border-slate-200 shadow-sm font-bold text-sm cursor-pointer"
           >
             <Download size={18} /> Export Excel
+          </button>
+          <button 
+            onClick={handleClearAll}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl transition-all border border-red-600 shadow-md shadow-red-600/10 font-bold text-sm cursor-pointer"
+          >
+            <Trash2 size={18} /> Clear All Orders
           </button>
           <button 
             onClick={handleLogout}

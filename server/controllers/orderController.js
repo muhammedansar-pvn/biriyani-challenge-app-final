@@ -76,6 +76,22 @@ const deleteOrder = async (req, res) => {
   }
 };
 
+// @desc    Clear all orders
+// @route   DELETE /api/orders/clear-all
+// @access  Private (Admin)
+const clearAllOrders = async (req, res) => {
+  try {
+    await Order.deleteMany({});
+    res.status(200).json({
+      success: true,
+      message: 'All orders cleared successfully',
+      data: {},
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
 // @desc    Get orders by phone number (public tracking)
 // @route   GET /api/orders/track/:phone
 // @access  Public
@@ -100,5 +116,6 @@ module.exports = {
   createOrder,
   getOrders,
   deleteOrder,
+  clearAllOrders,
   getOrdersByPhone,
 };
