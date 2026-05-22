@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCircle, Clock, Banknote } from 'lucide-react';
+import { LogOut, Search, Trash2, Download, Package, DollarSign, Users, CheckCircle, Clock, Banknote, MapPin } from 'lucide-react';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
@@ -84,6 +84,10 @@ const AdminDashboard = () => {
       'Name': order.name,
       'Phone': order.phone,
       'Place': order.place,
+      'Area': order.area || '-',
+      'Latitude': order.latitude || '-',
+      'Longitude': order.longitude || '-',
+      'Google Maps Link': order.googleMapsLink || '-',
       'Packs': order.packs,
       'Total Amount': order.total,
       'Payment Method': 'Cash on Delivery',
@@ -101,7 +105,8 @@ const AdminDashboard = () => {
   const filteredOrders = orders.filter(order => 
     order.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.phone.includes(searchTerm) ||
-    order.place.toLowerCase().includes(searchTerm.toLowerCase())
+    order.place.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.area && order.area.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Statistics
@@ -228,7 +233,27 @@ const AdminDashboard = () => {
                       {order.note && <div className="text-xs text-slate-500 mt-1 max-w-[150px] truncate" title={order.note}>Note: {order.note}</div>}
                     </td>
                     <td className="px-6 py-4 font-semibold text-slate-700">{order.phone}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-700">{order.place}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-700">
+                      <div className="flex items-center gap-1.5">
+                        <span>{order.place}</span>
+                        {order.googleMapsLink && (
+                          <a
+                            href={order.googleMapsLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-brand-lime hover:text-brand-yellow p-1 bg-green-50 hover:bg-green-100 rounded-lg transition-all"
+                            title="View exact delivery coordinates on Google Maps"
+                          >
+                            <MapPin size={14} />
+                          </a>
+                        )}
+                      </div>
+                      {order.area && (
+                        <div className="text-xs text-slate-500 font-extrabold mt-1">
+                          Area: {order.area}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-slate-800 font-extrabold">

@@ -55,6 +55,22 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    area: {
+      type: String,
+      default: '',
+    },
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
+    googleMapsLink: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

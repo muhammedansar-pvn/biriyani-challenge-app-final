@@ -11,7 +11,7 @@ const Navbar = ({ onTrackClick }) => {
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
             <span className="font-extrabold text-lg tracking-wide text-slate-900">
-              Biriyani <span className="text-brand-lime font-black">Challenge</span>
+              ബിരിയാണി  <span className="text-brand-lime font-black"> ചലഞ്ച്</span>
             </span>
           </div>
           

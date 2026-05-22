@@ -5,7 +5,7 @@ const Order = require('../models/Order');
 // @access  Public
 const createOrder = async (req, res) => {
   try {
-    const { name, phone, place, packs, note, packType } = req.body;
+    const { name, phone, place, packs, note, packType, area, latitude, longitude, googleMapsLink } = req.body;
 
     if (!name || !phone || !place || !packs) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
@@ -23,6 +23,10 @@ const createOrder = async (req, res) => {
       total,
       note,
       packType: packType || 'single',
+      area: area || '',
+      latitude: latitude || null,
+      longitude: longitude || null,
+      googleMapsLink: googleMapsLink || '',
     });
 
     res.status(201).json({

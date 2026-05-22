@@ -31,6 +31,17 @@ const cleanPhoneNumber = (phone) => {
   return digits;
 };
 
+const AREAS = [
+  'Paravanna',
+  'Paravanna Town',
+  'Puthangadi',
+  'Pariyapuram',
+  'Rahmathabad',
+  'Pachatiri',
+  'Vettom',
+  'Murivazhikal',
+];
+
 const LandingPage = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +50,10 @@ const LandingPage = () => {
     packType: 'single', // 'single' or 'family'
     packs: 1,
     note: '',
+    area: '',
+    latitude: null,
+    longitude: null,
+    googleMapsLink: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,6 +64,11 @@ const LandingPage = () => {
   const [trackResult, setTrackResult] = useState(null);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
   const [orderSuccessData, setOrderSuccessData] = useState(null);
+
+  // New Dropdown and Geolocation States
+  const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
+  const [areaSearchTerm, setAreaSearchTerm] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
 
   const handleTrack = async (e) => {
     e.preventDefault();
@@ -83,6 +103,56 @@ const LandingPage = () => {
   const totalAmount = formData.packs * pricePerPack;
 
   // =========================
+  // Geolocation Handlers
+  // =========================
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        setFormData((prev) => ({
+          ...prev,
+          latitude,
+          longitude,
+          googleMapsLink
+        }));
+        setIsLocating(false);
+        toast.success('Location fetched successfully! 📍');
+      },
+      (error) => {
+        setIsLocating(false);
+        console.error('Error fetching geolocation:', error);
+        let message = 'Failed to fetch location. Please enable location permissions.';
+        if (error.code === error.PERMISSION_DENIED) {
+          message = 'Location permission denied. Please allow location access in your browser settings.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          message = 'Location information is unavailable.';
+        } else if (error.code === error.TIMEOUT) {
+          message = 'Location request timed out.';
+        }
+        toast.error(message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleRemoveLocation = () => {
+    setFormData((prev) => ({
+      ...prev,
+      latitude: null,
+      longitude: null,
+      googleMapsLink: ''
+    }));
+    toast.info('Location coordinates removed.');
+  };
+
+  // =========================
   // Handle Input Change
   // =========================
   const handleChange = (e) => {
@@ -114,7 +184,12 @@ const LandingPage = () => {
       packType: 'single',
       packs: 1,
       note: '',
+      area: '',
+      latitude: null,
+      longitude: null,
+      googleMapsLink: '',
     });
+    setAreaSearchTerm('');
   };
 
   // =========================
@@ -127,9 +202,11 @@ const LandingPage = () => {
 *Name:* ${formData.name}
 *Phone:* ${formData.phone}
 *Place:* ${formData.place}
+${formData.area ? `*Area:* ${formData.area}` : ''}
 *Pack Type:* ${formData.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}
 *Quantity:* ${formData.packs} Pack(s)
 *Total Amount:* ₹${totalAmount}
+${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 *Note:* ${formData.note || 'None'}
 `;
 
@@ -250,7 +327,7 @@ const LandingPage = () => {
               </div>
 
               <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-4">
-                Biriyani Challenge
+                ബിരിയാണി ചലഞ്ച്
               </h1>
 
               <div className="inline-block bg-white border border-green-100 backdrop-blur-sm rounded-full px-5 py-2 mb-6">
@@ -358,12 +435,30 @@ const LandingPage = () => {
                     />
                   </div>
 
-                  {/* PLACE */}
+                  {/* PLACE (Delivery Address) & Geolocation */}
                   <div className="md:col-span-2">
-                    <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
-                      <MapPin size={16} />
-                      Delivery Address
-                    </label>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm text-slate-600 font-semibold flex items-center gap-2">
+                        <MapPin size={16} />
+                        Delivery Address
+                      </label>
+                      
+                      <button
+                        type="button"
+                        onClick={handleGetLocation}
+                        disabled={isLocating}
+                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                          formData.latitude && formData.longitude
+                            ? 'bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20'
+                            : isLocating
+                            ? 'bg-slate-550/10 text-slate-400 border-slate-200 animate-pulse'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <MapPin size={12} className={isLocating ? 'animate-bounce' : ''} />
+                        {isLocating ? 'Locating...' : formData.latitude ? 'Location Selected 📍' : 'Use Current Location'}
+                      </button>
+                    </div>
 
                     <input
                       type="text"
@@ -371,9 +466,134 @@ const LandingPage = () => {
                       required
                       value={formData.place}
                       onChange={handleChange}
-                      placeholder="Your Location"
+                      placeholder="Your Location / Landmark"
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none"
                     />
+
+                    {/* Coordinates confirmation and remove button */}
+                    {formData.latitude && formData.longitude && (
+                      <div className="mt-2 flex items-center justify-between bg-green-50/50 border border-green-100 rounded-xl px-3 py-2 text-xs text-slate-600">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                          <span className="font-semibold text-slate-750">
+                            Coordinates: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                          </span>
+                          <a
+                            href={formData.googleMapsLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-brand-lime hover:underline font-extrabold flex items-center gap-0.5 ml-1"
+                          >
+                            View on Google Maps
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveLocation}
+                          className="text-red-500 hover:text-red-700 font-extrabold cursor-pointer transition-all"
+                        >
+                          Remove Location
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AREA (Searchable Dropdown Field) */}
+                  <div className="md:col-span-2 relative">
+                    <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
+                      <MapPin size={16} />
+                      Area (Optional)
+                    </label>
+                    
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-left text-slate-800 focus:border-brand-lime focus:outline-none flex justify-between items-center shadow-sm transition-all hover:border-slate-350"
+                      >
+                        <span className={formData.area ? 'font-bold text-slate-900' : 'text-slate-400 font-medium'}>
+                          {formData.area || 'Select Your Area (Optional)'}
+                        </span>
+                        <span className="text-slate-400 pointer-events-none">
+                          <svg className={`w-5 h-5 transition-transform ${isAreaDropdownOpen ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </span>
+                      </button>
+
+                      {/* Dropdown list with background click-outside handler */}
+                      {isAreaDropdownOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-20" 
+                            onClick={() => setIsAreaDropdownOpen(false)}
+                          />
+                          <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="p-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                              <Search size={14} className="text-slate-400 ml-1" />
+                              <input
+                                type="text"
+                                value={areaSearchTerm}
+                                onChange={(e) => setAreaSearchTerm(e.target.value)}
+                                placeholder="Search area..."
+                                className="w-full bg-transparent border-none text-xs text-slate-800 focus:outline-none py-1 font-bold"
+                              />
+                              {areaSearchTerm && (
+                                <button
+                                  type="button"
+                                  onClick={() => setAreaSearchTerm('')}
+                                  className="text-slate-400 hover:text-slate-650 cursor-pointer"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                              {AREAS.filter(area => area.toLowerCase().includes(areaSearchTerm.toLowerCase())).length > 0 ? (
+                                AREAS.filter(area => area.toLowerCase().includes(areaSearchTerm.toLowerCase())).map((area) => (
+                                  <button
+                                    key={area}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData(prev => ({ ...prev, area }));
+                                      setIsAreaDropdownOpen(false);
+                                      setAreaSearchTerm('');
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-all flex items-center justify-between ${
+                                      formData.area === area
+                                        ? 'bg-brand-lime/10 text-brand-lime font-black'
+                                        : 'text-slate-750 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <span>{area}</span>
+                                    {formData.area === area && <span className="w-1.5 h-1.5 rounded-full bg-brand-lime"></span>}
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-4 py-3 text-xs text-slate-400 text-center font-medium">
+                                  No areas found
+                                </div>
+                              )}
+                              
+                              {formData.area && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, area: '' }));
+                                    setIsAreaDropdownOpen(false);
+                                    setAreaSearchTerm('');
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-xs text-red-500 font-extrabold hover:bg-red-50 transition-all border-t border-slate-100"
+                                >
+                                  Clear Selection
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* PACKAGE TYPE SELECTOR */}
@@ -643,6 +863,21 @@ const LandingPage = () => {
                 <span className="text-slate-400 font-bold">Location:</span>
                 <span className="text-slate-800 font-extrabold">{orderSuccessData.place}</span>
               </div>
+              {orderSuccessData.area && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Area:</span>
+                  <span className="text-slate-800 font-extrabold">{orderSuccessData.area}</span>
+                </div>
+              )}
+              {orderSuccessData.googleMapsLink && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Location Coords:</span>
+                  <span className="text-slate-800 font-extrabold flex items-center gap-1">
+                    <span>Shared 📍</span>
+                    <a href={orderSuccessData.googleMapsLink} target="_blank" rel="noreferrer" className="text-brand-lime hover:underline font-extrabold">View Map</a>
+                  </span>
+                </div>
+              )}
             </div>
 
             <button
@@ -653,9 +888,11 @@ const LandingPage = () => {
 *Name:* ${orderSuccessData.name}
 *Phone:* ${orderSuccessData.phone}
 *Place:* ${orderSuccessData.place}
+${orderSuccessData.area ? `*Area:* ${orderSuccessData.area}` : ''}
 *Pack Type:* ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}
 *Quantity:* ${orderSuccessData.packs} Pack(s)
 *Total Amount:* ₹${orderSuccessData.total}
+${orderSuccessData.googleMapsLink ? `*Location Link:* ${orderSuccessData.googleMapsLink}` : ''}
 *Note:* ${orderSuccessData.note || 'None'}
 `;
                 const encodedMessage = encodeURIComponent(message);
