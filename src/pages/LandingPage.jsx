@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import {
   Send,
   MapPin,
@@ -17,8 +16,6 @@ import {
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -71,7 +68,7 @@ const LandingPage = () => {
   const [areaSearchTerm, setAreaSearchTerm] = useState('');
   const [isLocating, setIsLocating] = useState(false);
 
-  const handleTrack = async (e) => {
+  const handleTrack = (e) => {
     e.preventDefault();
     const finalTrackPhone = cleanPhoneNumber(trackPhone);
     if (!/^[0-9]{10}$/.test(finalTrackPhone)) {
@@ -80,25 +77,24 @@ const LandingPage = () => {
     }
 
     setIsTrackLoading(true);
-    try {
-      const res = await axios.get(`${API_URL}/api/orders/track/${finalTrackPhone}`);
-      if (res.data.success) {
-        setTrackResult(res.data.data);
-        if (res.data.data.length === 0) {
+    // Simulate short network request delay for high fidelity UX
+    setTimeout(() => {
+      try {
+        const localOrders = JSON.parse(localStorage.getItem('biriyani_orders') || '[]');
+        const filtered = localOrders.filter(
+          (order) => cleanPhoneNumber(order.phone) === finalTrackPhone
+        );
+        setTrackResult(filtered);
+        if (filtered.length === 0) {
           toast.info('No orders found for this phone number');
         }
+      } catch (error) {
+        console.error('Tracking query failure:', error);
+        toast.error('Failed to retrieve order history.');
+      } finally {
+        setIsTrackLoading(false);
       }
-    } catch (error) {
-      console.error('Tracking query failure for URL:', `${API_URL}/api/orders/track/${finalTrackPhone}`, error);
-      const rawError = error.response?.data?.error;
-      const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
-                     error.response?.data?.message || 
-                     error.message || 
-                     'Server is unreachable. Please verify network connection or backend configuration.';
-      toast.error(`Tracking failed: ${errMsg}`);
-    } finally {
-      setIsTrackLoading(false);
-    }
+    }, 450);
   };
 
   const pricePerPack = formData.packType === 'family' ? 500 : 100;
@@ -252,12 +248,12 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
   // =========================
   // Submit Handler
   // =========================
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (isSubmitting) return;
 
-    // Clean phone number before validation & API post
+    // Clean phone number before validation & storage
     const cleanedPhone = cleanPhoneNumber(formData.phone);
     const updatedFormData = {
       ...formData,
@@ -268,30 +264,62 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
     setIsSubmitting(true);
 
-    try {
-      const res = await axios.post(
-        `${API_URL}/api/orders`,
-        updatedFormData
-      );
+    // Simulate submission delay for realistic feel
+    setTimeout(() => {
+      try {
+        const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
+        const newOrder = {
+          _id: orderId,
+          name: updatedFormData.name,
+          phone: updatedFormData.phone,
+          place: updatedFormData.place,
+          area: updatedFormData.area || '',
+          packType: updatedFormData.packType,
+          packs: updatedFormData.packs,
+          total: totalAmount,
+          note: updatedFormData.note || '',
+          googleMapsLink: updatedFormData.googleMapsLink || '',
+          createdAt: new Date().toISOString()
+        };
 
-      if (res.data.success) {
-        toast.success('Order placed successfully! 🍛');
-        setOrderSuccessData(res.data.data);
+        // Save order in localStorage
+        const localOrders = JSON.parse(localStorage.getItem('biriyani_orders') || '[]');
+        localOrders.push(newOrder);
+        localStorage.setItem('biriyani_orders', JSON.stringify(localOrders));
+
+        // Format WhatsApp Message
+        const message = `*🍛 BIRIYANI CHALLENGE ORDER*
+----------------------------------
+*Order ID:* ${orderId}
+*Customer Name:* ${newOrder.name}
+*Phone Number:* ${newOrder.phone}
+*Location/Place:* ${newOrder.place}
+${newOrder.area ? `*Area:* ${newOrder.area}\n` : ''}*Quantity:* ${newOrder.packs} x ${newOrder.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+*Challenge Date:* 2026 June 11 (Thursday)
+*Total Amount:* ₹${newOrder.total}
+*Special Notes:* ${newOrder.note || 'None'}
+----------------------------------
+${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
+
+        const encodedMessage = encodeURIComponent(message);
+        const whatsappNumber = '9744623768';
+
+        // Direct WhatsApp redirection
+        window.open(
+          `https://wa.me/91${whatsappNumber}?text=${encodedMessage}`,
+          '_blank'
+        );
+
+        toast.success('Redirecting to WhatsApp to complete your order! 🍛');
+        setOrderSuccessData(newOrder);
         resetForm();
-      } else {
-        toast.error('Failed to place order');
+      } catch (error) {
+        console.error('Order creation error:', error);
+        toast.error('Something went wrong. Please try again.');
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (error) {
-      console.error('Order post failure for URL:', `${API_URL}/api/orders`, error);
-      const rawError = error.response?.data?.error;
-      const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
-                     error.response?.data?.message || 
-                     error.message || 
-                     'Server is unreachable. Please verify backend API is running and connected.';
-      toast.error(`Order Failed: ${errMsg}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    }, 600);
   };
 
   return (
@@ -890,21 +918,22 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
             <button
               onClick={() => {
-                const message = `
-*New Biriyani Order!* 🍛
-
-*Name:* ${orderSuccessData.name}
-*Phone:* ${orderSuccessData.phone}
-*Place:* ${orderSuccessData.place}
-${orderSuccessData.area ? `*Area:* ${orderSuccessData.area}` : ''}
-*Pack Type:* ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}
-*Quantity:* ${orderSuccessData.packs} Pack(s)
+                const message = `*🍛 BIRIYANI CHALLENGE ORDER*
+----------------------------------
+*Order ID:* ${orderSuccessData._id}
+*Customer Name:* ${orderSuccessData.name}
+*Phone Number:* ${orderSuccessData.phone}
+*Location/Place:* ${orderSuccessData.place}
+${orderSuccessData.area ? `*Area:* ${orderSuccessData.area}\n` : ''}*Quantity:* ${orderSuccessData.packs} x ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+*Challenge Date:* 2026 June 11 (Thursday)
 *Total Amount:* ₹${orderSuccessData.total}
-${orderSuccessData.googleMapsLink ? `*Location Link:* ${orderSuccessData.googleMapsLink}` : ''}
-*Note:* ${orderSuccessData.note || 'None'}
-`;
+*Special Notes:* ${orderSuccessData.note || 'None'}
+----------------------------------
+${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
+
                 const encodedMessage = encodeURIComponent(message);
-                window.open(`https://wa.me/919744623768?text=${encodedMessage}`, '_blank');
+                const whatsappNumber = '9744623768';
+                window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
                 setOrderSuccessData(null);
               }}
               className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-extrabold py-3.5 rounded-xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center gap-2 cursor-pointer text-sm"
