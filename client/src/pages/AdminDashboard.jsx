@@ -34,7 +34,8 @@ const AdminDashboard = () => {
           localStorage.removeItem('adminToken');
           navigate('/admin/login');
         } else {
-          const errMsg = error.response?.data?.error ||
+          const rawError = error.response?.data?.error;
+          const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                          error.response?.data?.message || 
                          error.message || 
                          'Server is unreachable. Please verify backend is running.';
@@ -64,7 +65,8 @@ const AdminDashboard = () => {
         toast.success('Order deleted successfully');
       } catch (error) {
         console.error('Order deletion failure for URL:', `${API_URL}/api/orders/${id}`, error);
-        const errMsg = error.response?.data?.error ||
+        const rawError = error.response?.data?.error;
+        const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                        error.response?.data?.message || 
                        error.message || 
                        'Server is unreachable.';
@@ -87,7 +89,8 @@ const AdminDashboard = () => {
         toast.success('All orders cleared successfully');
       } catch (error) {
         console.error('Clear all orders failure:', error);
-        const errMsg = error.response?.data?.error ||
+        const rawError = error.response?.data?.error;
+        const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                        error.response?.data?.message || 
                        error.message || 
                        'Server is unreachable.';

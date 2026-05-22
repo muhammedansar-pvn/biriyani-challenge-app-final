@@ -38,7 +38,8 @@ const AdminLogin = () => {
       }
     } catch (error) {
       console.error('Admin login failure for URL:', `${API_URL}/api/admin/login`, error);
-      const errMsg = error.response?.data?.error ||
+      const rawError = error.response?.data?.error;
+      const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                      error.response?.data?.message || 
                      error.message || 
                      'Server is unreachable. Please verify backend is running.';

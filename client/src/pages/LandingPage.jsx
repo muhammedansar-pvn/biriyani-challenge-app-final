@@ -90,7 +90,8 @@ const LandingPage = () => {
       }
     } catch (error) {
       console.error('Tracking query failure for URL:', `${API_URL}/api/orders/track/${finalTrackPhone}`, error);
-      const errMsg = error.response?.data?.error ||
+      const rawError = error.response?.data?.error;
+      const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                      error.response?.data?.message || 
                      error.message || 
                      'Server is unreachable. Please verify network connection or backend configuration.';
@@ -282,7 +283,8 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
       }
     } catch (error) {
       console.error('Order post failure for URL:', `${API_URL}/api/orders`, error);
-      const errMsg = error.response?.data?.error ||
+      const rawError = error.response?.data?.error;
+      const errMsg = (typeof rawError === 'string' ? rawError : rawError?.message) ||
                      error.response?.data?.message || 
                      error.message || 
                      'Server is unreachable. Please verify backend API is running and connected.';
