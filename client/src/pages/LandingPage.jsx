@@ -322,11 +322,11 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
                   SSF
                 </span>
                 <span className="text-brand-lime font-extrabold tracking-[0.2em] uppercase text-xs sm:text-sm">
-                  Tirur Division Presents
+                  Tirur Division Event crow
                 </span>
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-4">
+              <h1 className="text-5xl md:text-7xl font-keraleeyam text-slate-900 mb-4">
                 ബിരിയാണി ചലഞ്ച്
               </h1>
 
