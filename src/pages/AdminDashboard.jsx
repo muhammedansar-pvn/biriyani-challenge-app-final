@@ -80,7 +80,8 @@ const AdminDashboard = () => {
     packs: 1,
     note: '',
     googleMapsLink: '',
-    status: 'Pending'
+    status: 'Pending',
+    agentName: ''
   });
 
   // Synchronize localStorage changes
@@ -123,12 +124,13 @@ const AdminDashboard = () => {
     try {
       const normalizedText = importText.replace(/\r\n/g, '\n').trim();
 
-      const idMatch = normalizedText.match(/Order ID:\*?\s*(BC-\d+)/i);
-      const nameMatch = normalizedText.match(/Customer Name:\*?\s*(.+)/i);
-      const phoneMatch = normalizedText.match(/Phone Number:\*?\s*([\d\s+\-()]+)/i);
-      const placeMatch = normalizedText.match(/Location\/Place:\*?\s*(.+)/i);
-      const areaMatch = normalizedText.match(/Area:\*?\s*(.+)/i);
-      const noteMatch = normalizedText.match(/Special Notes:\*?\s*(.+)/i);
+      const idMatch = normalizedText.match(/(?:Order ID|ID):\*?\s*(BC-\d+)/i);
+      const nameMatch = normalizedText.match(/(?:Customer Name|👤 \*?Name\*?):\*?\s*(.+)/i);
+      const phoneMatch = normalizedText.match(/(?:Phone Number|📞 \*?Phone\*?):\*?\s*([\d\s+\-()]+)/i);
+      const placeMatch = normalizedText.match(/(?:Location\/Place|📍 \*?Location\*?):\*?\s*(.+)/i);
+      const areaMatch = normalizedText.match(/(?:Area|🗺️ \*?Area\*?):\*?\s*(.+)/i);
+      const noteMatch = normalizedText.match(/(?:Special Notes|📝 \*?Notes\*?):\*?\s*(.+)/i);
+      const agentMatch = normalizedText.match(/(?:Agent Name\/Code|Agent|👤 \*?Agent\*?):\*?\s*(.+)/i);
       
       const qtyMatch = normalizedText.match(/Quantity:\*?\s*(\d+)/i);
       const packTypeMatch = normalizedText.match(/Quantity:\*?\s*\d+\s*x\s*([a-zA-Z\s]+)/i);
@@ -163,7 +165,8 @@ const AdminDashboard = () => {
         note: noteMatch ? noteMatch[1].trim() : 'None',
         googleMapsLink: mapLinkMatch ? mapLinkMatch[1].trim() : '',
         status: 'Pending',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        agentName: agentMatch ? agentMatch[1].trim() : ''
       };
 
       const existingIdx = orders.findIndex(o => o._id === parsedOrder._id);
@@ -219,7 +222,8 @@ const AdminDashboard = () => {
       note: newOrderForm.note.trim() || 'None',
       googleMapsLink: newOrderForm.googleMapsLink.trim(),
       status: newOrderForm.status,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      agentName: newOrderForm.agentName.trim()
     };
 
     setOrders(prev => [manualOrder, ...prev]);
@@ -234,7 +238,8 @@ const AdminDashboard = () => {
       packs: 1,
       note: '',
       googleMapsLink: '',
-      status: 'Pending'
+      status: 'Pending',
+      agentName: ''
     });
   };
 
@@ -284,6 +289,7 @@ const AdminDashboard = () => {
       'Phone',
       'Place',
       'Area',
+      'Agent Name/Code',
       'Pack Type',
       'Quantity',
       'Total Amount',
@@ -299,6 +305,7 @@ const AdminDashboard = () => {
       o.phone,
       `"${o.place.replace(/"/g, '""')}"`,
       `"${o.area || ''}"`,
+      `"${(o.agentName || '').replace(/"/g, '""')}"`,
       o.packType,
       o.packs,
       o.total,
@@ -354,6 +361,7 @@ const AdminDashboard = () => {
         <td>
           <div style="font-weight: bold; color: #111;">${o.name}</div>
           <div style="font-size: 10px; color: #555;">${o.phone}</div>
+          ${o.agentName ? `<div style="font-size: 9px; color: #16a34a; font-weight: bold; margin-top: 2px;">Agent: ${o.agentName}</div>` : ''}
         </td>
         <td>
           <div style="font-size: 11px;">${o.place}</div>
@@ -641,7 +649,8 @@ Please keep cash ready. Thank you!`;
       order._id.toLowerCase().includes(cleanSearch) ||
       order.name.toLowerCase().includes(cleanSearch) ||
       order.phone.includes(cleanSearch) ||
-      order.place.toLowerCase().includes(cleanSearch);
+      order.place.toLowerCase().includes(cleanSearch) ||
+      (order.agentName && order.agentName.toLowerCase().includes(cleanSearch));
 
     const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
     const matchesArea = areaFilter === 'All' || order.area === areaFilter;
@@ -1067,13 +1076,20 @@ Please keep cash ready. Thank you!`;
                         {/* Column 2: Customer */}
                         <td className="py-4.5 px-6">
                           <span className="block font-black text-slate-800 text-sm">{order.name}</span>
-                          <a
-                            href={`tel:${order.phone}`}
-                            className="inline-flex items-center gap-1 text-[11px] text-[#0284c7] font-bold mt-1.5 hover:underline"
-                          >
-                            <Phone size={10} />
-                            {order.phone}
-                          </a>
+                          <div className="flex flex-col gap-1.5 items-start mt-1">
+                            <a
+                              href={`tel:${order.phone}`}
+                              className="inline-flex items-center gap-1 text-[11px] text-[#0284c7] font-bold hover:underline"
+                            >
+                              <Phone size={10} />
+                              {order.phone}
+                            </a>
+                            {order.agentName && (
+                              <span className="inline-flex items-center gap-1 text-[9px] bg-brand-lime/10 text-brand-lime border border-brand-lime/20 px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider mt-0.5">
+                                via Agent: {order.agentName}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Column 3: Address */}
@@ -1403,6 +1419,18 @@ Please keep cash ready. Thank you!`;
                       onChange={(e) => setNewOrderForm(prev => ({ ...prev, note: e.target.value }))}
                       placeholder="e.g. Deliver before 1 PM"
                       className="w-full bg-[#f8fafc] border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:border-brand-lime shadow-inner"
+                    />
+                  </div>
+
+                  {/* Agent Name / Code */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-500 mb-1.5">Agent Name / Code (Optional)</label>
+                    <input
+                      type="text"
+                      value={newOrderForm.agentName}
+                      onChange={(e) => setNewOrderForm(prev => ({ ...prev, agentName: e.target.value }))}
+                      placeholder="e.g. Muhammad / A102"
+                      className="w-full bg-[#f8fafc] border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:border-brand-lime shadow-inner font-bold"
                     />
                   </div>
 
