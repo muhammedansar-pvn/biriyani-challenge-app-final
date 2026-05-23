@@ -353,7 +353,7 @@ ${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLi
                   SSF
                 </span>
                 <span className="text-brand-lime font-extrabold tracking-[0.2em] uppercase text-xs sm:text-sm">
-                  Tirur Division Event crow
+                  Tirur Division Event crew
                 </span>
               </div>
 
