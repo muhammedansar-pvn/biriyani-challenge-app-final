@@ -313,7 +313,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
 
 💳 *Please complete the payment via Google Pay:*
 
-📲 *GPay:* +91 82813 73768
+📲 *GPay:* 8281373768
 
 🧾 *After payment, please send the payment screenshot here.*
 
@@ -990,7 +990,7 @@ ${orderSuccessData.note && orderSuccessData.note !== 'None' ? `📝 *Notes:* ${o
 
 💳 *Please complete the payment via Google Pay:*
 
-📲 *GPay:* +91 82813 73768
+📲 *GPay:* 8281373768
 
 🧾 *After payment, please send the payment screenshot here.*
 
