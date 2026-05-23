@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import {
@@ -12,6 +12,7 @@ import {
   X,
   CheckCircle,
   Calendar,
+  Lock,
 } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -69,6 +70,157 @@ const LandingPage = () => {
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
   const [areaSearchTerm, setAreaSearchTerm] = useState('');
   const [isLocating, setIsLocating] = useState(false);
+
+  // =========================
+  // WhatsApp OTP Verification States
+  // =========================
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpSentPhone, setOtpSentPhone] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(300); // 5 minutes
+  const [resendCooldown, setResendCooldown] = useState(0); // 30s resend cooldown
+
+  // Cooldown timers and expiration intervals
+  useEffect(() => {
+    let interval = null;
+    if (isOtpSent && !isPhoneVerified) {
+      interval = setInterval(() => {
+        setOtpCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsOtpSent(false);
+            setOtpDigits(['', '', '', '', '', '']);
+            toast.error('Verification code has expired. Please verify again.');
+            return 0;
+          }
+          return prev - 1;
+        });
+
+        setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isOtpSent, isPhoneVerified]);
+
+  // Format countdown into 04:59 minutes style
+  const formatCountdown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Trigger Send OTP code via Serverless Endpoint
+  const handleSendOtp = async () => {
+    const cleanPhone = cleanPhoneNumber(formData.phone);
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit phone number first');
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setIsOtpSent(true);
+        setOtpSentPhone(cleanPhone);
+        setOtpDigits(['', '', '', '', '', '']);
+        setOtpCountdown(300); // Reset to 5 minutes
+        setResendCooldown(30); // 30 seconds resend cooldown
+        
+        if (data.mockMode) {
+          toast.info(`[Dev Mode] WhatsApp OTP sent: 123456 📲`);
+        } else {
+          toast.success('Verification code sent to WhatsApp! 📲');
+        }
+      } else {
+        toast.error(data.message || 'Failed to send WhatsApp verification code.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Verification network request failure.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  // Trigger Verify OTP code
+  const handleVerifyOtp = async (codeStr) => {
+    if (isVerifyingOtp) return;
+    setIsVerifyingOtp(true);
+    try {
+      const response = await fetch('/api/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: otpSentPhone, code: codeStr })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setIsPhoneVerified(true);
+        setIsOtpSent(false);
+        // Lock the verified number in the form
+        setFormData(prev => ({ ...prev, phone: otpSentPhone }));
+        toast.success('WhatsApp number verified successfully! ✅');
+      } else {
+        toast.error(data.message || 'Invalid verification code. Try again.');
+        // Clear digits on error for a fresh retry
+        setOtpDigits(['', '', '', '', '', '']);
+        setTimeout(() => {
+          const firstBox = document.getElementById('otp-0');
+          if (firstBox) firstBox.focus();
+        }, 150);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Verification query failed.');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  // Handle Digit entries in OTP individual input boxes
+  const handleOtpDigitChange = (index, value) => {
+    const cleanedDigit = value.replace(/\D/g, '');
+    const newDigits = [...otpDigits];
+    newDigits[index] = cleanedDigit;
+    setOtpDigits(newDigits);
+
+    // Auto-focus shifts forward
+    if (cleanedDigit && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+
+    // Auto-submission check once all 6 digits are filled
+    const fullCode = newDigits.join('');
+    if (fullCode.length === 6) {
+      handleVerifyOtp(fullCode);
+    }
+  };
+
+  // Handle Backspacing navigation
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      if (prevInput) {
+        prevInput.focus();
+        const newDigits = [...otpDigits];
+        newDigits[index - 1] = '';
+        setOtpDigits(newDigits);
+      }
+    }
+  };
 
   const handleTrack = (e) => {
     e.preventDefault();
@@ -258,6 +410,11 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
   // =========================
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!isPhoneVerified) {
+      toast.error('Please verify your WhatsApp phone number first!');
+      return;
+    }
 
     if (isSubmitting) return;
 
@@ -471,23 +628,108 @@ Thank you ❤️
                     />
                   </div>
 
-                  {/* PHONE */}
-                  <div>
-                    <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
-                      <Phone size={16} />
-                      Phone Number
-                    </label>
+                  {/* PHONE & OTP VERIFICATION */}
+                  <div className="relative">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm text-slate-600 font-semibold flex items-center gap-2">
+                        <Phone size={16} />
+                        WhatsApp Phone Number *
+                      </label>
+                      {isPhoneVerified && (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-black uppercase">
+                          Verified ✅
+                        </span>
+                      )}
+                    </div>
 
-                    <input
-                      type="tel"
-                      name="phone"
-                      required
-                      maxLength={15}
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="9876543210"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        name="phone"
+                        required
+                        disabled={isPhoneVerified}
+                        maxLength={15}
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="9876543210"
+                        className={`flex-grow bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none ${isPhoneVerified ? 'opacity-80 bg-slate-50 cursor-not-allowed border-green-200/50' : ''}`}
+                      />
+                      {!isPhoneVerified && (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp || isVerifyingOtp || !/^[0-9]{10}$/.test(cleanPhoneNumber(formData.phone))}
+                          className="bg-brand-lime hover:bg-brand-yellow disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-extrabold px-4.5 rounded-xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center min-w-[110px] cursor-pointer text-xs sm:text-sm border-none"
+                        >
+                          {isSendingOtp ? (
+                            <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                          ) : isOtpSent ? (
+                            'Resend Code'
+                          ) : (
+                            'Verify Number'
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Dynamic 6-Digit OTP Keypad Form Panel */}
+                    <AnimatePresence>
+                      {isOtpSent && !isPhoneVerified && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, y: -10 }}
+                          animate={{ opacity: 1, height: 'auto', y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -10 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
+                          className="mt-4 p-4 bg-green-50/40 border border-green-150 rounded-2xl overflow-hidden shadow-inner"
+                        >
+                          <div className="text-center mb-3">
+                            <span className="block text-slate-700 text-xs font-black">
+                              📲 Enter Verification Code
+                            </span>
+                            <span className="block text-[10px] text-slate-450 font-bold mt-1">
+                              A 6-digit WhatsApp OTP was sent to +91 ${otpSentPhone.slice(0, 5)} ${otpSentPhone.slice(5)}
+                            </span>
+                          </div>
+
+                          {/* 6 Individual Digital Inputs Box Array */}
+                          <div className="flex justify-center gap-2 max-w-[280px] mx-auto mb-3">
+                            {otpDigits.map((digit, idx) => (
+                              <input
+                                key={idx}
+                                id={`otp-${idx}`}
+                                type="text"
+                                maxLength={1}
+                                value={digit}
+                                disabled={isVerifyingOtp}
+                                onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                                onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                                className="w-10 h-12 bg-white border border-slate-200 rounded-xl text-center text-lg font-black text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none transition-all shadow-sm"
+                              />
+                            ))}
+                          </div>
+
+                          <div className="flex justify-between items-center text-[10px] font-black text-slate-500 max-w-[260px] mx-auto mt-2">
+                            <span className="text-slate-400">
+                              Expires in: <strong className="text-brand-lime">{formatCountdown(otpCountdown)}</strong>
+                            </span>
+
+                            {resendCooldown > 0 ? (
+                              <span className="text-slate-400">
+                                Resend in {resendCooldown}s
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleSendOtp}
+                                className="text-brand-lime hover:underline font-black cursor-pointer bg-transparent border-0 p-0 text-[10px]"
+                              >
+                                Resend Code
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* PLACE (Delivery Address) & Geolocation */}
@@ -776,11 +1018,20 @@ Thank you ❤️
                 {/* SUBMIT */}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-extrabold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-8 disabled:opacity-70 shadow-lg shadow-brand-lime/20 cursor-pointer"
+                  disabled={isSubmitting || !isPhoneVerified}
+                  className={`w-full font-extrabold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-8 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg cursor-pointer border-none ${
+                    isPhoneVerified
+                      ? 'bg-brand-lime hover:bg-brand-yellow text-white shadow-brand-lime/20'
+                      : 'bg-slate-300 text-slate-500 shadow-none'
+                  }`}
                 >
                   {isSubmitting ? (
                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : !isPhoneVerified ? (
+                    <>
+                      <Lock size={18} />
+                      Verify WhatsApp to Order
+                    </>
                   ) : (
                     <>
                       <Send size={20} />
