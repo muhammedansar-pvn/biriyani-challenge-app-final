@@ -213,7 +213,7 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
     const encodedMessage = encodeURIComponent(message);
 
-    const whatsappNumber = '9744623768';
+    const whatsappNumber = '8281373768';
 
     window.open(
       `https://wa.me/91${whatsappNumber}?text=${encodedMessage}`,
@@ -312,7 +312,7 @@ ${newOrder.area ? `*Area:* ${newOrder.area}\n` : ''}*Quantity:* ${newOrder.packs
 ${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
 
         const encodedMessage = encodeURIComponent(message);
-        const whatsappNumber = '9744623768';
+        const whatsappNumber = '8281373768';
 
         // Direct WhatsApp redirection
         window.open(
@@ -980,7 +980,7 @@ ${orderSuccessData.area ? `*Area:* ${orderSuccessData.area}\n` : ''}*Quantity:* 
 ${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
 
                 const encodedMessage = encodeURIComponent(message);
-                const whatsappNumber = '9744623768';
+                const whatsappNumber = '8281373768';
                 window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
                 setOrderSuccessData(null);
               }}
