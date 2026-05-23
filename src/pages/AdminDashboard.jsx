@@ -20,7 +20,8 @@ import {
   User,
   DollarSign,
   AlertCircle,
-  FileText
+  FileText,
+  QrCode
 } from 'lucide-react';
 
 const AREAS = [
@@ -69,6 +70,7 @@ const AdminDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   
   // Manual Order Form State
   const [newOrderForm, setNewOrderForm] = useState({
@@ -896,6 +898,15 @@ Please keep cash ready. Thank you!`;
           {/* Right utility buttons */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             
+            {/* Agent QR Portal Button */}
+            <button
+              onClick={() => setIsQrModalOpen(true)}
+              className="bg-green-50/50 hover:bg-green-100 text-brand-lime border border-green-250/20 font-extrabold text-xs px-4 py-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <QrCode size={16} />
+              Agent QR Portal
+            </button>
+
             {/* Import Button */}
             <button
               onClick={() => setIsImportModalOpen(true)}
@@ -1464,6 +1475,67 @@ Please keep cash ready. Thank you!`;
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: SHOW AGENT QR CODE */}
+      <AnimatePresence>
+        {isQrModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl border border-green-100 relative text-slate-800 text-center"
+            >
+              <button
+                onClick={() => setIsQrModalOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="mb-4 flex flex-col items-center">
+                <div className="w-12 h-12 bg-brand-lime/10 text-brand-lime rounded-2xl flex items-center justify-center border border-brand-lime/20 shadow-inner mb-3">
+                  <QrCode size={24} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900">Agent Portal QR Code</h3>
+                <p className="text-slate-450 text-[10px] font-bold mt-1 max-w-xs">
+                  Let your Agents scan this code on their phones to instantly open the Agent Ordering & OTP Verification Portal!
+                </p>
+              </div>
+
+              <div className="bg-[#f8fafc] border border-slate-200/50 rounded-2xl p-5 flex justify-center items-center shadow-inner mb-4">
+                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-md">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/#agent')}`}
+                    alt="Agent Portal QR Code"
+                    className="w-[200px] h-[200px] block"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-green-50/50 border border-green-100 rounded-xl p-3 text-[10px] text-slate-500 font-bold mb-4">
+                <span className="block text-brand-lime font-black uppercase text-[9px] mb-0.5">Scannable Link:</span>
+                <a
+                  href={`${window.location.origin}/#agent`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-brand-lime font-extrabold break-all hover:underline block text-[11px] mt-1"
+                >
+                  {window.location.origin}/#agent ➔
+                </a>
+              </div>
+
+              <button
+                onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(window.location.origin + '/#agent')}`, '_blank')}
+                className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-black py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-xs shadow-md"
+              >
+                <ExternalLink size={14} />
+                Open / Print High-Res QR
+              </button>
             </motion.div>
           </div>
         )}
