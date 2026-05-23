@@ -321,6 +321,175 @@ const AdminDashboard = () => {
     toast.success('Spreadsheet CSV downloaded successfully! 📊');
   };
 
+  // Download PDF Report function
+  const downloadPDF = () => {
+    if (filteredOrders.length === 0) {
+      toast.error('No orders to export.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    
+    // Calculate total stats for the active filtered set
+    const totalPacksSingle = filteredOrders
+      .filter(o => o.packType === 'single' && o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + o.packs, 0);
+
+    const totalPacksFamily = filteredOrders
+      .filter(o => o.packType === 'family' && o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + o.packs, 0);
+
+    const revenueVal = filteredOrders
+      .filter(o => o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + o.total, 0);
+
+    const activeAreaFilter = areaFilter === 'All' ? 'All Areas' : areaFilter;
+    const activeStatusFilter = statusFilter === 'All' ? 'All Statuses' : statusFilter;
+    const activePackFilter = packTypeFilter === 'All' ? 'All Types' : (packTypeFilter === 'single' ? 'Single Packs' : 'Family Packs');
+
+    const orderRowsHtml = filteredOrders.map((o, idx) => `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td><strong>${o._id}</strong></td>
+        <td>
+          <div style="font-weight: bold; color: #111;">${o.name}</div>
+          <div style="font-size: 10px; color: #555;">${o.phone}</div>
+        </td>
+        <td>
+          <div style="font-size: 11px;">${o.place}</div>
+          ${o.area ? `<div style="font-size: 9px; color: #777; font-weight: bold; margin-top: 2px;">Area: ${o.area}</div>` : ''}
+        </td>
+        <td style="text-align: center;">
+          <div style="font-weight: bold;">${o.packs} Pack(s)</div>
+          <div style="font-size: 9px; color: #666;">${o.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}</div>
+        </td>
+        <td style="text-align: center;">
+          <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; background: #fafafa;">
+            ${o.status}
+          </span>
+        </td>
+        <td style="text-align: right; font-weight: bold;">₹${o.total}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Biriyani Challenge - Orders Report</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #333; line-height: 1.4; }
+            .header-container { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #22c55e; padding-bottom: 15px; margin-bottom: 25px; }
+            .title-section h1 { font-size: 24px; font-weight: 800; margin: 0; color: #111; }
+            .title-section p { font-size: 12px; font-weight: bold; margin: 5px 0 0 0; color: #22c55e; text-transform: uppercase; letter-spacing: 1px; }
+            .meta-section { text-align: right; font-size: 11px; color: #555; font-weight: bold; line-height: 1.6; }
+            
+            .filter-tags { display: flex; gap: 10px; margin-bottom: 20px; font-size: 11px; font-weight: bold; color: #666; }
+            .filter-tag { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 6px; color: #166534; }
+            
+            .kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+            .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 15px; text-align: center; }
+            .kpi-label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+            .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            th { background: #0f172a; color: #fff; font-weight: bold; padding: 10px; text-align: left; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+            tr:nth-child(even) { background: #f8fafc; }
+            
+            .summary-table { margin-top: 20px; border-top: 2px solid #0f172a; font-size: 13px; font-weight: bold; }
+            .footer-note { text-align: center; margin-top: 40px; font-size: 10px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 15px; font-weight: bold; }
+            
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <div class="title-section">
+              <h1>🍛 BIRIYANI CHALLENGE REPORT</h1>
+              <p>SSF Tirur Division Event Crew</p>
+            </div>
+            <div class="meta-section">
+              <div>REPORT DATE: ${new Date().toLocaleDateString()}</div>
+              <div>TOTAL DELIVERIES: ${filteredOrders.filter(o => o.status === 'Delivered').length} orders</div>
+              <div>CHALLENGE DATE: 2026 June 11</div>
+            </div>
+          </div>
+          
+          <div class="filter-tags">
+            <span class="filter-tag">Area: ${activeAreaFilter}</span>
+            <span class="filter-tag">Status: ${activeStatusFilter}</span>
+            <span class="filter-tag">Package: ${activePackFilter}</span>
+            ${searchTerm ? `<span class="filter-tag">Search: "${searchTerm}"</span>` : ''}
+          </div>
+          
+          <div class="kpis-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL ORDERS</div>
+              <div class="kpi-value">${filteredOrders.length}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">SINGLE PACKS</div>
+              <div class="kpi-value">${totalPacksSingle}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">FAMILY PACKS</div>
+              <div class="kpi-value">${totalPacksFamily}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL REVENUE</div>
+              <div class="kpi-value" style="color: #22c55e;">₹${revenueVal}</div>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 5%; text-align: center;">Sl</th>
+                <th style="width: 12%;">Order ID</th>
+                <th style="width: 25%;">Customer Details</th>
+                <th style="width: 28%;">Delivery Address</th>
+                <th style="width: 15%; text-align: center;">Packs Details</th>
+                <th style="width: 12%; text-align: center;">Status</th>
+                <th style="width: 13%; text-align: right;">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderRowsHtml}
+              <tr class="summary-table">
+                <td colspan="4" style="text-align: right; padding-right: 15px;">TOTAL VALUES FOR THIS REPORT:</td>
+                <td style="text-align: center;">
+                  ${totalPacksSingle + totalPacksFamily * 5} Packs sold
+                  <div style="font-size: 9px; font-weight: normal; color: #666; margin-top: 2px;">
+                    Single: ${totalPacksSingle} | Family: ${totalPacksFamily}
+                  </div>
+                </td>
+                <td></td>
+                <td style="text-align: right; color: #22c55e; font-size: 14px; font-weight: 900;">₹${revenueVal}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="footer-note">
+            This document is generated dynamically from the SSF Biriyani Challenge Admin Portal. All orders are Cash on Delivery.
+            <div style="margin-top: 5px;">&copy; ${new Date().getFullYear()} SSF Tirur Division. All rights reserved.</div>
+          </div>
+          
+          <div class="no-print" style="text-align: center; margin-top: 30px;">
+            <button onclick="window.print();" style="padding: 12px 25px; background: #22c55e; border: none; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2);">
+              Print / Save as PDF
+            </button>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   // WhatsApp Updates Templates
   const sendWhatsAppStatusUpdate = (order, type) => {
     let message = '';
@@ -743,6 +912,15 @@ Please keep cash ready. Thank you!`;
             >
               <Download size={16} />
               Export CSV Excel
+            </button>
+
+            {/* Export PDF Button */}
+            <button
+              onClick={downloadPDF}
+              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-extrabold text-xs px-4 py-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <FileText size={16} className="text-red-500" />
+              Download PDF Report
             </button>
 
             {/* Reset database */}
