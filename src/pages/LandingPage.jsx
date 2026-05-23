@@ -76,16 +76,33 @@ const LandingPage = () => {
   // =========================
   // WhatsApp OTP Verification States
   // =========================
-  const [isAgentMode, setIsAgentMode] = useState(false);
+  const [isAgentMode, setIsAgentMode] = useState(() => {
+    return window.location.hash.includes('agent');
+  });
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [otpSentPhone, setOtpSentPhone] = useState('');
-  const [isPhoneVerified, setIsPhoneVerified] = useState(true); // Default to true for normal customer orders
+  const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
+    return !window.location.hash.includes('agent');
+  });
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(300); // 5 minutes
   const [resendCooldown, setResendCooldown] = useState(0); // 30s resend cooldown
+
+  // Synchronize with Hash changes (e.g. going from / to /#agent and vice-versa)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hasAgentHash = window.location.hash.includes('agent');
+      setIsAgentMode(hasAgentHash);
+      setIsPhoneVerified(!hasAgentHash);
+      setIsOtpSent(false);
+      setGeneratedOtp('');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Cooldown timers and expiration intervals
   useEffect(() => {
@@ -1044,58 +1061,60 @@ Thank you ❤️
                   </div>
 
                   {/* AGENT MODE TOGGLE & NAME */}
-                  <div className="md:col-span-2 mt-2 bg-[#f8fafc] border border-slate-150 rounded-2xl p-4 flex flex-col gap-3 shadow-inner">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-brand-lime/10 text-brand-lime rounded-xl flex items-center justify-center border border-brand-lime/20 shadow-inner">
-                          <Users size={18} />
+                  {window.location.hash.includes('agent') && (
+                    <div className="md:col-span-2 mt-2 bg-[#f8fafc] border border-slate-150 rounded-2xl p-4 flex flex-col gap-3 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-brand-lime/10 text-brand-lime rounded-xl flex items-center justify-center border border-brand-lime/20 shadow-inner">
+                            <Users size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800">Agent Order Mode</h4>
+                            <p className="text-slate-450 text-[10px] font-bold">Enable this if you are placing this order as an Agent</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-black text-slate-800">Agent Order Mode</h4>
-                          <p className="text-slate-450 text-[10px] font-bold">Enable this if you are placing this order as an Agent</p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={isAgentMode}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setIsAgentMode(checked);
-                            setIsPhoneVerified(!checked); // Enforce verification only when checked
-                            setIsOtpSent(false);
-                            setGeneratedOtp('');
-                          }}
-                        />
-                        <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-brand-lime/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-lime"></div>
-                      </label>
-                    </div>
-
-                    <AnimatePresence>
-                      {isAgentMode && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden border-t border-slate-250/20 pt-3"
-                        >
-                          <label className="text-xs text-slate-650 font-bold block mb-1.5">
-                            Agent Name / Code *
-                          </label>
+                        <label className="relative inline-flex items-center cursor-pointer">
                           <input
-                            type="text"
-                            name="agentName"
-                            required={isAgentMode}
-                            value={formData.agentName}
-                            onChange={handleChange}
-                            placeholder="Enter your Agent Name or Code (e.g. Muhammad / A102)"
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:border-brand-lime focus:outline-none shadow-sm font-bold"
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={isAgentMode}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setIsAgentMode(checked);
+                              setIsPhoneVerified(!checked); // Enforce verification only when checked
+                              setIsOtpSent(false);
+                              setGeneratedOtp('');
+                            }}
                           />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-brand-lime/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-lime"></div>
+                        </label>
+                      </div>
+
+                      <AnimatePresence>
+                        {isAgentMode && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden border-t border-slate-250/20 pt-3"
+                          >
+                            <label className="text-xs text-slate-650 font-bold block mb-1.5">
+                              Agent Name / Code *
+                            </label>
+                            <input
+                              type="text"
+                              name="agentName"
+                              required={isAgentMode}
+                              value={formData.agentName}
+                              onChange={handleChange}
+                              placeholder="Enter your Agent Name or Code (e.g. Muhammad / A102)"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:border-brand-lime focus:outline-none shadow-sm font-bold"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
 
                 </div>
 
