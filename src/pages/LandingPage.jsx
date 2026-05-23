@@ -100,7 +100,7 @@ const LandingPage = () => {
   };
 
   const pricePerPack = formData.packType === 'family' ? 500 : 100;
-  const totalAmount = formData.packs * pricePerPack;
+  const totalAmount = (parseInt(formData.packs) || 0) * pricePerPack;
 
   // =========================
   // Geolocation Handlers
@@ -161,7 +161,7 @@ const LandingPage = () => {
     setFormData((prev) => {
       let val = value;
       if (name === 'packs') {
-        val = Math.max(1, parseInt(value) || 1);
+        val = value === '' ? '' : Math.max(1, parseInt(value) || 1);
       } else if (name === 'phone') {
         // Allow numbers, spaces, plus, hyphens, and parentheses for flexible typing
         val = value.replace(/[^0-9+\s()-]/g, '');
