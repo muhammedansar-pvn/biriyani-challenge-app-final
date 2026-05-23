@@ -74,8 +74,6 @@ const LandingPage = () => {
   const [trackPhone, setTrackPhone] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
-  const [orderSuccessData, setOrderSuccessData] = useState(null);
-  const [copied, setCopied] = useState(false);
 
   // New Dropdown and Geolocation States
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
@@ -142,44 +140,6 @@ const LandingPage = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Copy UPI ID to clipboard
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText('sameemkvtm-2@okicici');
-    setCopied(true);
-    toast.success('UPI ID copied to clipboard! 📋');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Launch specific UPI app using ultra-robust Android intents and iOS schemes
-  const handleLaunchUpi = (app) => {
-    if (!orderSuccessData) return;
-    const total = orderSuccessData.total;
-    const upiParams = `pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${total}&cu=INR`;
-    
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    let url = `upi://pay?${upiParams}`; // fallback
-    
-    if (isAndroid) {
-      if (app === 'gpay') {
-        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`;
-      } else if (app === 'phonepe') {
-        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.phonepe.app;end;`;
-      } else if (app === 'paytm') {
-        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=net.one97.paytm;end;`;
-      }
-    } else {
-      // iOS / other schemes
-      if (app === 'gpay') {
-        url = `gpay://upi/pay?${upiParams}`;
-      } else if (app === 'phonepe') {
-        url = `phonepe://pay?${upiParams}`;
-      } else if (app === 'paytm') {
-        url = `paytmmp://pay?${upiParams}`;
-      }
-    }
-    
-    window.location.href = url;
-  };
 
   // Trigger Send OTP code via WhatsApp deep link
   const handleSendOtp = () => {
@@ -528,14 +488,45 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
         status: 'Pending'
       };
 
-      // Save order in Cloud Firestore
-      await setDoc(doc(db, 'orders', orderId), newOrder);
+      // Save order in Cloud Firestore with a 3-second timeout protection
+      try {
+        await Promise.race([
+          setDoc(doc(db, 'orders', orderId), newOrder),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore sync timeout')), 3000))
+        ]);
+      } catch (dbError) {
+        console.warn("Cloud sync delayed or offline, proceeding to secure order:", dbError);
+      }
 
-      toast.success('Order recorded successfully! Please complete payment to confirm. 🍛');
-      setOrderSuccessData(newOrder);
+      toast.success('Order placed successfully! Redirecting to WhatsApp to complete payment... 🍛');
+
+      // Build WhatsApp message
+      const message = `--------------------------------
+*🍽️ Biriyani Challenge Order*
+
+*Order ID:* ${orderId}
+👤 *Name:* ${newOrder.name}
+📞 *Phone:* ${newOrder.phone}
+📍 *Location:* ${newOrder.place}
+${newOrder.area ? `🗺️ *Area:* ${newOrder.area}\n` : ''}${newOrder.agentName ? `👤 *Agent:* ${newOrder.agentName}\n` : ''}🍗 *Quantity:* ${newOrder.packs} x ${newOrder.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+💰 *Total:* ₹${newOrder.total}
+📅 *Challenge Date:* 2026 June 11 (Thursday)
+${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n` : ''}${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n` : ''}
+💳 *Payment Instructions:*
+GPay: +91 82813 73768
+
+Please send payment screenshot after payment.
+Thank you ❤️
+--------------------------------`;
+
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappNumber = '8281373768';
+      window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
+
+      resetForm();
     } catch (error) {
       console.error('Order creation error:', error);
-      toast.error('Failed to sync order to cloud. Please check your internet connection.');
+      toast.error('Something went wrong. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1277,217 +1268,6 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
         </div>
       )}
 
-      {/* ORDER SUCCESSFUL MODAL */}
-      {orderSuccessData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 md:p-8 max-w-lg md:max-w-2xl w-full shadow-2xl border border-slate-100 relative text-slate-800 my-8"
-          >
-            <button
-              onClick={() => {
-                setOrderSuccessData(null);
-                resetForm();
-              }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-brand-lime mx-auto mb-3 border border-green-100/50 shadow-sm">
-                <CheckCircle size={28} className="text-brand-lime animate-pulse" />
-              </div>
-              <h3 className="text-xl md:text-2xl font-black text-slate-950">
-                Secure UPI Checkout 🍛
-              </h3>
-              <p className="text-slate-500 font-bold text-[11px] md:text-xs">
-                Scan QR or use quick mobile buttons to complete payment and secure your order.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              
-              {/* Column 1: QR Code Card */}
-              <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-200/50 rounded-2xl shadow-inner">
-                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-md relative group">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                      `upi://pay?pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${orderSuccessData.total}&cu=INR`
-                    )}`}
-                    alt="UPI Payment QR Code"
-                    className="w-[180px] h-[180px] md:w-[200px] md:h-[200px] block"
-                  />
-                  {/* Styled central UPI overlay for aesthetics */}
-                  <div className="absolute inset-0 m-auto w-10 h-10 bg-white rounded-full border border-slate-100 flex items-center justify-center shadow-md p-1">
-                    <span className="text-[10px] font-black text-brand-lime leading-none">UPI</span>
-                  </div>
-                </div>
-                <div className="text-center mt-3.5 space-y-1">
-                  <span className="block text-[11px] font-black text-slate-700 tracking-wide uppercase">
-                    Scan to pay with any UPI App
-                  </span>
-                  <span className="block text-[10px] text-slate-450 font-bold">
-                    Supports Google Pay, PhonePe, Paytm, BHIM & more
-                  </span>
-                </div>
-              </div>
-
-              {/* Column 2: Payment details & Quick buttons */}
-              <div className="space-y-4">
-                
-                {/* Total Cost card */}
-                <div className="bg-brand-lime/10 border border-brand-lime/20 rounded-2xl p-4 flex flex-col justify-center items-center">
-                  <span className="text-xs text-brand-lime font-bold mb-0.5 uppercase tracking-wide">
-                    Amount to Pay
-                  </span>
-                  <span className="text-3xl font-extrabold text-brand-lime">
-                    ₹{orderSuccessData.total}
-                  </span>
-                </div>
-
-                {/* Account Details */}
-                <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-3.5 space-y-2 text-xs font-bold text-slate-600">
-                  <div className="flex justify-between">
-                    <span className="text-slate-450">Account Holder:</span>
-                    <span className="text-slate-800 font-extrabold">Mohammed Sameem K</span>
-                  </div>
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="text-slate-450">UPI ID:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-800 font-extrabold select-all">sameemkvtm-2@okicici</span>
-                      <button
-                        onClick={handleCopyUpi}
-                        className="p-1 text-slate-400 hover:text-brand-lime hover:bg-slate-200/60 rounded transition-all cursor-pointer border-0 bg-transparent"
-                        title="Copy UPI ID"
-                      >
-                        {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick-Pay Mobile apps launchers */}
-                <div className="space-y-2.5">
-                  <span className="block text-[10px] font-black text-slate-450 uppercase tracking-wide text-center">
-                    📲 Pay Directly on Mobile (Tap App below)
-                  </span>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* GPay */}
-                    <button
-                      type="button"
-                      onClick={() => handleLaunchUpi('gpay')}
-                      className="bg-[#1a73e8] hover:bg-[#155cb4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
-                    >
-                      <Smartphone size={12} />
-                      GPay
-                    </button>
-                    {/* PhonePe */}
-                    <button
-                      type="button"
-                      onClick={() => handleLaunchUpi('phonepe')}
-                      className="bg-[#5f259f] hover:bg-[#4b1d7e] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
-                    >
-                      <Smartphone size={12} />
-                      PhonePe
-                    </button>
-                    {/* Paytm */}
-                    <button
-                      type="button"
-                      onClick={() => handleLaunchUpi('paytm')}
-                      className="bg-[#00b9f5] hover:bg-[#0094c4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
-                    >
-                      <Smartphone size={12} />
-                      Paytm
-                    </button>
-                    {/* Generic Chooser */}
-                    <button
-                      type="button"
-                      onClick={() => handleLaunchUpi('other')}
-                      className="bg-brand-lime hover:bg-[#a3e635] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
-                    >
-                      <ExternalLink size={12} />
-                      Other UPI
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Footer action buttons */}
-            <div className="mt-8 border-t border-slate-100 pt-5 flex flex-col items-center gap-3">
-              <button
-                onClick={() => {
-                  const message = `--------------------------------
-*🍽️ Biriyani Challenge Order*
-
-*Order ID:* ${orderSuccessData._id}
-👤 *Name:* ${orderSuccessData.name}
-📞 *Phone:* ${orderSuccessData.phone}
-📍 *Location:* ${orderSuccessData.place}
-${orderSuccessData.area ? `🗺️ *Area:* ${orderSuccessData.area}\n` : ''}${orderSuccessData.agentName ? `👤 *Agent:* ${orderSuccessData.agentName}\n` : ''}🍗 *Quantity:* ${orderSuccessData.packs} x ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-💰 *Total:* ₹${orderSuccessData.total}
-📅 *Challenge Date:* 2026 June 11 (Thursday)
-${orderSuccessData.note && orderSuccessData.note !== 'None' ? `📝 *Notes:* ${orderSuccessData.note}\n` : ''}${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n` : ''}
-✅ *Payment Status:* completed via UPI (Mohammed Sameem K)
-
-💳 *Please verify the completed transaction screenshot.*
-
-Thank you ❤️
---------------------------------
-Hello! I have completed the UPI payment of ₹${orderSuccessData.total} for my Biriyani Challenge order. Here is my payment screenshot.`;
-
-                  const encodedMessage = encodeURIComponent(message);
-                  const whatsappNumber = '8281373768';
-                  window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
-                  setOrderSuccessData(null);
-                  resetForm();
-                }}
-                className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-extrabold py-4 rounded-2xl transition-all shadow-lg shadow-brand-lime/20 flex items-center justify-center gap-2 cursor-pointer text-sm"
-              >
-                <CheckCircle size={18} />
-                I Have Paid (Send Screenshot)
-              </button>
-
-              <button
-                onClick={() => {
-                  const message = `--------------------------------
-*🍽️ Biriyani Challenge Order*
-
-*Order ID:* ${orderSuccessData._id}
-👤 *Name:* ${orderSuccessData.name}
-📞 *Phone:* ${orderSuccessData.phone}
-📍 *Location:* ${orderSuccessData.place}
-${orderSuccessData.area ? `🗺️ *Area:* ${orderSuccessData.area}\n` : ''}${orderSuccessData.agentName ? `👤 *Agent:* ${orderSuccessData.agentName}\n` : ''}🍗 *Quantity:* ${orderSuccessData.packs} x ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-💰 *Total:* ₹${orderSuccessData.total}
-📅 *Challenge Date:* 2026 June 11 (Thursday)
-${orderSuccessData.note && orderSuccessData.note !== 'None' ? `📝 *Notes:* ${orderSuccessData.note}\n` : ''}${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n` : ''}
-✅ *Order Confirmed (Cash on Delivery)*
-
-💳 *Please keep ₹${orderSuccessData.total} ready upon delivery.*
-
-Thank you ❤️
---------------------------------
-Hello! I would like to pay Cash on Delivery for my Biriyani Challenge order of ₹${orderSuccessData.total}. Please confirm my order.`;
-
-                  const encodedMessage = encodeURIComponent(message);
-                  const whatsappNumber = '8281373768';
-                  window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
-                  setOrderSuccessData(null);
-                  resetForm();
-                }}
-                className="text-xs text-slate-450 hover:text-slate-600 font-black cursor-pointer hover:underline bg-transparent border-0 py-1"
-              >
-                Pay Cash on Delivery instead
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       <Footer />
     </div>
