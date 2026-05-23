@@ -103,4 +103,5 @@ const Navbar = ({ onTrackClick }) => {
   );
 };
 
-export default Navbar;
+export default React.memo(Navbar);
+
