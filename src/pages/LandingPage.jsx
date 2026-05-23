@@ -298,18 +298,27 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
         localStorage.setItem('biriyani_orders', JSON.stringify(localOrders));
 
         // Format WhatsApp Message
-        const message = `*🍛 BIRIYANI CHALLENGE ORDER*
-----------------------------------
+        const message = `--------------------------------
+*🍽️ Biriyani Challenge Order*
+
 *Order ID:* ${orderId}
-*Customer Name:* ${newOrder.name}
-*Phone Number:* ${newOrder.phone}
-*Location/Place:* ${newOrder.place}
-${newOrder.area ? `*Area:* ${newOrder.area}\n` : ''}*Quantity:* ${newOrder.packs} x ${newOrder.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-*Challenge Date:* 2026 June 11 (Thursday)
-*Total Amount:* ₹${newOrder.total}
-*Special Notes:* ${newOrder.note || 'None'}
-----------------------------------
-${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
+👤 *Name:* ${newOrder.name}
+📞 *Phone:* ${newOrder.phone}
+📍 *Location:* ${newOrder.place}
+${newOrder.area ? `🗺️ *Area:* ${newOrder.area}\n` : ''}🍗 *Quantity:* ${newOrder.packs} x ${newOrder.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+💰 *Total:* ₹${newOrder.total}
+📅 *Challenge Date:* 2026 June 11 (Thursday)
+${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n` : ''}${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n` : ''}
+✅ *Order Confirmed*
+
+💳 *Please complete the payment via Google Pay:*
+
+📲 *GPay:* +91 82813 73768
+
+🧾 *After payment, please send the payment screenshot here.*
+
+Thank you ❤️
+--------------------------------`;
 
         const encodedMessage = encodeURIComponent(message);
         const whatsappNumber = '8281373768';
@@ -966,18 +975,27 @@ ${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLi
 
             <button
               onClick={() => {
-                const message = `*🍛 BIRIYANI CHALLENGE ORDER*
-----------------------------------
+                const message = `--------------------------------
+*🍽️ Biriyani Challenge Order*
+
 *Order ID:* ${orderSuccessData._id}
-*Customer Name:* ${orderSuccessData.name}
-*Phone Number:* ${orderSuccessData.phone}
-*Location/Place:* ${orderSuccessData.place}
-${orderSuccessData.area ? `*Area:* ${orderSuccessData.area}\n` : ''}*Quantity:* ${orderSuccessData.packs} x ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-*Challenge Date:* 2026 June 11 (Thursday)
-*Total Amount:* ₹${orderSuccessData.total}
-*Special Notes:* ${orderSuccessData.note || 'None'}
-----------------------------------
-${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n----------------------------------\n` : ''}*Sahithyolsav 2026 Cultural Event*`;
+👤 *Name:* ${orderSuccessData.name}
+📞 *Phone:* ${orderSuccessData.phone}
+📍 *Location:* ${orderSuccessData.place}
+${orderSuccessData.area ? `🗺️ *Area:* ${orderSuccessData.area}\n` : ''}🍗 *Quantity:* ${orderSuccessData.packs} x ${orderSuccessData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+💰 *Total:* ₹${orderSuccessData.total}
+📅 *Challenge Date:* 2026 June 11 (Thursday)
+${orderSuccessData.note && orderSuccessData.note !== 'None' ? `📝 *Notes:* ${orderSuccessData.note}\n` : ''}${orderSuccessData.googleMapsLink ? `📍 *Delivery Location:* \n${orderSuccessData.googleMapsLink}\n` : ''}
+✅ *Order Confirmed*
+
+💳 *Please complete the payment via Google Pay:*
+
+📲 *GPay:* +91 82813 73768
+
+🧾 *After payment, please send the payment screenshot here.*
+
+Thank you ❤️
+--------------------------------`;
 
                 const encodedMessage = encodeURIComponent(message);
                 const whatsappNumber = '8281373768';
