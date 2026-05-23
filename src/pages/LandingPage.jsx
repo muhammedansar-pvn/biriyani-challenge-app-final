@@ -147,6 +147,37 @@ const LandingPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Launch specific UPI app using ultra-robust Android intents and iOS schemes
+  const handleLaunchUpi = (app) => {
+    if (!orderSuccessData) return;
+    const total = orderSuccessData.total;
+    const upiParams = `pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${total}&cu=INR`;
+    
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    let url = `upi://pay?${upiParams}`; // fallback
+    
+    if (isAndroid) {
+      if (app === 'gpay') {
+        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`;
+      } else if (app === 'phonepe') {
+        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.phonepe.app;end;`;
+      } else if (app === 'paytm') {
+        url = `intent://pay?${upiParams}#Intent;scheme=upi;package=net.one97.paytm;end;`;
+      }
+    } else {
+      // iOS / other schemes
+      if (app === 'gpay') {
+        url = `gpay://upi/pay?${upiParams}`;
+      } else if (app === 'phonepe') {
+        url = `phonepe://pay?${upiParams}`;
+      } else if (app === 'paytm') {
+        url = `paytmmp://pay?${upiParams}`;
+      }
+    }
+    
+    window.location.href = url;
+  };
+
   // Trigger Send OTP code via WhatsApp deep link
   const handleSendOtp = () => {
     const cleanPhone = cleanPhoneNumber(formData.phone);
@@ -1345,37 +1376,41 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
                   
                   <div className="grid grid-cols-2 gap-2">
                     {/* GPay */}
-                    <a
-                      href={`gpay://upi/pay?pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${orderSuccessData.total}&cu=INR`}
-                      className="bg-[#1a73e8] hover:bg-[#155cb4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchUpi('gpay')}
+                      className="bg-[#1a73e8] hover:bg-[#155cb4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
                     >
                       <Smartphone size={12} />
                       GPay
-                    </a>
+                    </button>
                     {/* PhonePe */}
-                    <a
-                      href={`phonepe://pay?pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${orderSuccessData.total}&cu=INR`}
-                      className="bg-[#5f259f] hover:bg-[#4b1d7e] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchUpi('phonepe')}
+                      className="bg-[#5f259f] hover:bg-[#4b1d7e] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
                     >
                       <Smartphone size={12} />
                       PhonePe
-                    </a>
+                    </button>
                     {/* Paytm */}
-                    <a
-                      href={`paytmmp://pay?pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${orderSuccessData.total}&cu=INR`}
-                      className="bg-[#00b9f5] hover:bg-[#0094c4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchUpi('paytm')}
+                      className="bg-[#00b9f5] hover:bg-[#0094c4] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
                     >
                       <Smartphone size={12} />
                       Paytm
-                    </a>
+                    </button>
                     {/* Generic Chooser */}
-                    <a
-                      href={`upi://pay?pa=sameemkvtm-2@okicici&pn=Mohammed%20Sameem%20K&am=${orderSuccessData.total}&cu=INR`}
-                      className="bg-brand-lime hover:bg-[#a3e635] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchUpi('other')}
+                      className="bg-brand-lime hover:bg-[#a3e635] text-white text-[11px] font-black py-2.5 px-3 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-sm border-0 cursor-pointer"
                     >
                       <ExternalLink size={12} />
                       Other UPI
-                    </a>
+                    </button>
                   </div>
                 </div>
 
