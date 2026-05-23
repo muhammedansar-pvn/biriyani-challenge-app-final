@@ -1029,7 +1029,7 @@ Please keep cash ready. Thank you!`;
 
       {/* FOOTER */}
       <footer className="py-6 border-t border-slate-200 mt-12 bg-white text-center text-xs text-slate-400 font-bold shadow-inner">
-        <span>&copy; {new Date().getFullYear()} Biriyani Challenge Admin. SSF Tirur Division.</span>
+        <span>&copy; {new Date().getFullYear()} Biriyani Challenge Admin. SSF Tirur Division Event Crew.</span>
       </footer>
 
       {/* MODAL 1: WHATSAPP COPY-PASTE IMPORTER */}
