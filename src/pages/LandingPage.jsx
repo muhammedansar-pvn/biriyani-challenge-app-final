@@ -74,6 +74,7 @@ const LandingPage = () => {
   const [trackPhone, setTrackPhone] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
+  const [successModalData, setSuccessModalData] = useState(null);
 
   // New Dropdown and Geolocation States
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
@@ -502,7 +503,9 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
       // Build WhatsApp message
       const message = `--------------------------------
-*🍽️ Biriyani Challenge Order*
+*🍽️ Biriyani Challenge - Confirmation Receipt*
+
+✅ Your Biriyani Challenge order has been received successfully!
 
 *Order ID:* ${orderId}
 👤 *Name:* ${newOrder.name}
@@ -512,17 +515,21 @@ ${newOrder.area ? `🗺️ *Area:* ${newOrder.area}\n` : ''}${newOrder.agentName
 💰 *Total:* ₹${newOrder.total}
 📅 *Challenge Date:* 2026 June 11 (Thursday)
 ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n` : ''}${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLink}\n` : ''}
-💳 *Payment Instructions:*
+🍽️ *Order Status:* Confirmed
+
+💳 *Please complete payment via:*
 GPay: +91 82813 73768
 
-Please send payment screenshot after payment.
+📸 *After payment, please send the payment screenshot.*
+
 Thank you ❤️
 --------------------------------`;
 
       const encodedMessage = encodeURIComponent(message);
-      const whatsappNumber = '8281373768';
-      window.open(`https://wa.me/91${whatsappNumber}?text=${encodedMessage}`, '_blank');
+      // Open WhatsApp chat pointing to the entered customer phone number!
+      window.open(`https://wa.me/91${cleanedPhone}?text=${encodedMessage}`, '_blank');
 
+      setSuccessModalData(newOrder);
       resetForm();
     } catch (error) {
       console.error('Order creation error:', error);
@@ -1268,6 +1275,104 @@ Thank you ❤️
         </div>
       )}
 
+
+      {/* ORDER SENT SUCCESSFULLY MODAL */}
+      {successModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative text-slate-800 text-center"
+          >
+            <button
+              onClick={() => {
+                setSuccessModalData(null);
+                resetForm();
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-brand-lime mx-auto mb-4 border border-green-150/40 shadow-inner">
+              <CheckCircle size={36} className="text-brand-lime animate-bounce" />
+            </div>
+
+            <h3 className="text-2xl font-black text-slate-950 mb-2">
+              Order Sent Successfully ✅
+            </h3>
+            
+            <p className="text-slate-500 font-bold text-sm mb-6 leading-relaxed">
+              We have opened WhatsApp to send the confirmation receipt directly to the customer's number:
+              <strong className="block text-slate-800 font-extrabold mt-1">+91 {successModalData.phone}</strong>
+            </p>
+
+            {/* Quick Order Info Summary Card */}
+            <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-4 mb-6 text-left text-xs font-semibold text-slate-600 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Order ID:</span>
+                <span className="text-slate-950 font-black">{successModalData._id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Customer Name:</span>
+                <span className="text-slate-900 font-bold">{successModalData.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Quantity:</span>
+                <span className="text-slate-900 font-bold">{successModalData.packs} Pack(s)</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200/50 pt-2 font-black text-sm">
+                <span className="text-slate-500">Total Amount:</span>
+                <span className="text-brand-lime">₹{successModalData.total}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  const message = `--------------------------------
+*🍽️ Biriyani Challenge - Confirmation Receipt*
+
+✅ Your Biriyani Challenge order has been received successfully!
+
+*Order ID:* ${successModalData._id}
+👤 *Name:* ${successModalData.name}
+📞 *Phone:* ${successModalData.phone}
+📍 *Location:* ${successModalData.place}
+${successModalData.area ? `🗺️ *Area:* ${successModalData.area}\n` : ''}${successModalData.agentName ? `👤 *Agent:* ${successModalData.agentName}\n` : ''}🍗 *Quantity:* ${successModalData.packs} x ${successModalData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
+💰 *Total:* ₹${successModalData.total}
+📅 *Challenge Date:* 2026 June 11 (Thursday)
+${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${successModalData.note}\n` : ''}${successModalData.googleMapsLink ? `📍 *Delivery Location:* \n${successModalData.googleMapsLink}\n` : ''}
+🍽️ *Order Status:* Confirmed
+
+💳 *Please complete payment via:*
+GPay: +91 82813 73768
+
+📸 *After payment, please send the payment screenshot.*
+
+Thank you ❤️
+--------------------------------`;
+                  const encodedMessage = encodeURIComponent(message);
+                  window.open(`https://wa.me/91${successModalData.phone}?text=${encodedMessage}`, '_blank');
+                }}
+                className="w-full bg-brand-lime hover:bg-brand-yellow text-white font-extrabold py-3.5 rounded-2xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center gap-2 cursor-pointer border-none"
+              >
+                Reopen WhatsApp Chat
+              </button>
+
+              <button
+                onClick={() => {
+                  setSuccessModalData(null);
+                  resetForm();
+                }}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3 rounded-2xl transition-all flex items-center justify-center cursor-pointer border-none"
+              >
+                Back to Home
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <Footer />
     </div>
