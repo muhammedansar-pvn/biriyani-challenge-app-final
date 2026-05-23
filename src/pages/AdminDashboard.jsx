@@ -24,6 +24,9 @@ import {
   QrCode
 } from 'lucide-react';
 
+import { db } from '../firebase';
+import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+
 const AREAS = [
   'Paravanna',
   'Paravanna Town',
@@ -56,9 +59,7 @@ const AdminDashboard = () => {
   const [isPinError, setIsPinError] = useState(false);
 
   // Orders State
-  const [orders, setOrders] = useState(() => {
-    return JSON.parse(localStorage.getItem('biriyani_orders') || '[]');
-  });
+  const [orders, setOrders] = useState([]);
 
   // UI Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,10 +87,24 @@ const AdminDashboard = () => {
     agentName: ''
   });
 
-  // Synchronize localStorage changes
+  // Subscribe to Cloud Firestore changes in real-time
   useEffect(() => {
-    localStorage.setItem('biriyani_orders', JSON.stringify(orders));
-  }, [orders]);
+    if (!isAuthenticated) return;
+
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedOrders = [];
+      querySnapshot.forEach((doc) => {
+        fetchedOrders.push({ ...doc.data() });
+      });
+      setOrders(fetchedOrders);
+    }, (error) => {
+      console.error("Firestore subscription error: ", error);
+      toast.error("Failed to connect to real-time cloud database.");
+    });
+
+    return () => unsubscribe();
+  }, [isAuthenticated]);
 
   // Handle PIN entry
   const handlePinSubmit = (e) => {
@@ -116,7 +131,7 @@ const AdminDashboard = () => {
   // =========================
   // WhatsApp Order Parsing RegExp
   // =========================
-  const handleImportTextSubmit = (e) => {
+  const handleImportTextSubmit = async (e) => {
     e.preventDefault();
     if (!importText.trim()) {
       toast.error('Please paste order text first.');
@@ -155,6 +170,9 @@ const AdminDashboard = () => {
       const pricePerPack = packType === 'family' ? 500 : 100;
       const totalAmount = packs * pricePerPack;
 
+      // Check if order already exists locally/locally fetched to preserve status and createdAt
+      const existingOrder = orders.find(o => o._id === orderId);
+
       const parsedOrder = {
         _id: orderId,
         name: nameMatch[1].trim(),
@@ -166,23 +184,13 @@ const AdminDashboard = () => {
         total: totalAmount,
         note: noteMatch ? noteMatch[1].trim() : 'None',
         googleMapsLink: mapLinkMatch ? mapLinkMatch[1].trim() : '',
-        status: 'Pending',
-        createdAt: new Date().toISOString(),
+        status: existingOrder ? (existingOrder.status || 'Pending') : 'Pending',
+        createdAt: existingOrder ? (existingOrder.createdAt || new Date().toISOString()) : new Date().toISOString(),
         agentName: agentMatch ? agentMatch[1].trim() : ''
       };
 
-      const existingIdx = orders.findIndex(o => o._id === parsedOrder._id);
-      if (existingIdx !== -1) {
-        const updated = [...orders];
-        parsedOrder.status = updated[existingIdx].status || 'Pending';
-        parsedOrder.createdAt = updated[existingIdx].createdAt || parsedOrder.createdAt;
-        updated[existingIdx] = parsedOrder;
-        setOrders(updated);
-        toast.success(`Updated existing order ${orderId}! 🍛`);
-      } else {
-        setOrders(prev => [parsedOrder, ...prev]);
-        toast.success(`Imported new order ${orderId} successfully! 🍛`);
-      }
+      await setDoc(doc(db, 'orders', orderId), parsedOrder);
+      toast.success(existingOrder ? `Updated existing order ${orderId}! 🍛` : `Imported new order ${orderId} successfully! 🍛`);
 
       setImportText('');
       setIsImportModalOpen(false);
@@ -195,7 +203,7 @@ const AdminDashboard = () => {
   // =========================
   // Form Submission Handlers
   // =========================
-  const handleAddOrder = (e) => {
+  const handleAddOrder = async (e) => {
     e.preventDefault();
     if (!newOrderForm.name.trim() || !newOrderForm.phone.trim() || !newOrderForm.place.trim()) {
       toast.error('Please fill in all required fields.');
@@ -228,50 +236,68 @@ const AdminDashboard = () => {
       agentName: newOrderForm.agentName.trim()
     };
 
-    setOrders(prev => [manualOrder, ...prev]);
-    toast.success(`Created manual order ${orderId}!`);
-    setIsAddModalOpen(false);
-    setNewOrderForm({
-      name: '',
-      phone: '',
-      place: '',
-      area: '',
-      packType: 'single',
-      packs: 1,
-      note: '',
-      googleMapsLink: '',
-      status: 'Pending',
-      agentName: ''
-    });
+    try {
+      await setDoc(doc(db, 'orders', orderId), manualOrder);
+      toast.success(`Created manual order ${orderId}!`);
+      setIsAddModalOpen(false);
+      setNewOrderForm({
+        name: '',
+        phone: '',
+        place: '',
+        area: '',
+        packType: 'single',
+        packs: 1,
+        note: '',
+        googleMapsLink: '',
+        status: 'Pending',
+        agentName: ''
+      });
+    } catch (error) {
+      console.error("Error creating manual order: ", error);
+      toast.error("Failed to sync manual order to the cloud.");
+    }
   };
 
   // Update Status of an Order
-  const handleUpdateStatus = (id, newStatus) => {
-    const updated = orders.map(order => {
-      if (order._id === id) {
-        return { ...order, status: newStatus };
-      }
-      return order;
-    });
-    setOrders(updated);
-    toast.success(`Order ${id} status updated to ${newStatus}`);
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      toast.success(`Order ${id} status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating order status: ", error);
+      toast.error("Failed to update status on cloud database.");
+    }
   };
 
   // Delete Order
-  const handleDeleteOrder = (id) => {
+  const handleDeleteOrder = async (id) => {
     if (window.confirm(`Are you sure you want to permanently delete order ${id}?`)) {
-      setOrders(prev => prev.filter(order => order._id !== id));
-      toast.info(`Order ${id} deleted.`);
+      try {
+        await deleteDoc(doc(db, 'orders', id));
+        toast.info(`Order ${id} deleted.`);
+      } catch (error) {
+        console.error("Error deleting order: ", error);
+        toast.error("Failed to delete order from cloud database.");
+      }
     }
   };
 
   // Reset database completely
-  const handleResetDatabase = () => {
-    if (window.confirm('WARNING: This will delete ALL orders in the local database. Are you absolutely sure?')) {
+  const handleResetDatabase = async () => {
+    if (window.confirm('WARNING: This will delete ALL orders in the cloud database. Are you absolutely sure?')) {
       if (window.confirm('Double verification: Type CONFIRM below to delete.')) {
-        setOrders([]);
-        localStorage.removeItem('biriyani_orders');
-        toast.error('All orders wiped clean.');
+        try {
+          const querySnapshot = await getDocs(collection(db, 'orders'));
+          const batch = writeBatch(db);
+          querySnapshot.forEach((document) => {
+            batch.delete(doc(db, 'orders', document.id));
+          });
+          await batch.commit();
+          toast.error('All orders wiped clean from cloud database.');
+        } catch (error) {
+          console.error("Error resetting database: ", error);
+          toast.error("Failed to wipe database from cloud.");
+        }
       }
     }
   };

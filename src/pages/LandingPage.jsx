@@ -24,6 +24,9 @@ import {
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
+import { db } from '../firebase';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
   const digits = phone.replace(/\D/g, ''); // strip all non-digits
@@ -287,7 +290,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     }
   };
 
-  const handleTrack = (e) => {
+  const handleTrack = async (e) => {
     e.preventDefault();
     const finalTrackPhone = cleanPhoneNumber(trackPhone);
     if (!/^[0-9]{10}$/.test(finalTrackPhone)) {
@@ -296,24 +299,25 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     }
 
     setIsTrackLoading(true);
-    // Simulate short network request delay for high fidelity UX
-    setTimeout(() => {
-      try {
-        const localOrders = JSON.parse(localStorage.getItem('biriyani_orders') || '[]');
-        const filtered = localOrders.filter(
-          (order) => cleanPhoneNumber(order.phone) === finalTrackPhone
-        );
-        setTrackResult(filtered);
-        if (filtered.length === 0) {
-          toast.info('No orders found for this phone number');
-        }
-      } catch (error) {
-        console.error('Tracking query failure:', error);
-        toast.error('Failed to retrieve order history.');
-      } finally {
-        setIsTrackLoading(false);
+    try {
+      const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
+      const querySnapshot = await getDocs(q);
+      const filtered = [];
+      querySnapshot.forEach((doc) => {
+        filtered.push(doc.data());
+      });
+      // Sort by date descending
+      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setTrackResult(filtered);
+      if (filtered.length === 0) {
+        toast.info('No orders found for this phone number');
       }
-    }, 450);
+    } catch (error) {
+      console.error('Tracking query failure:', error);
+      toast.error('Failed to retrieve order history from cloud.');
+    } finally {
+      setIsTrackLoading(false);
+    }
   };
 
   const pricePerPack = formData.packType === 'family' ? 500 : 100;
@@ -478,7 +482,7 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
   // =========================
   // Submit Handler
   // =========================
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (isAgentMode && !formData.agentName.trim()) {
@@ -504,41 +508,37 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
     setIsSubmitting(true);
 
-    // Simulate submission delay for realistic feel
-    setTimeout(() => {
-      try {
-        const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
-        const finalArea = updatedFormData.area === 'Other' ? updatedFormData.customArea.trim() : updatedFormData.area;
-        
-        const newOrder = {
-          _id: orderId,
-          name: updatedFormData.name,
-          phone: updatedFormData.phone,
-          place: updatedFormData.place,
-          area: finalArea || '',
-          packType: updatedFormData.packType,
-          packs: updatedFormData.packs,
-          total: totalAmount,
-          note: updatedFormData.note || '',
-          googleMapsLink: updatedFormData.googleMapsLink || '',
-          createdAt: new Date().toISOString(),
-          agentName: isAgentMode ? updatedFormData.agentName.trim() : ''
-        };
+    try {
+      const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
+      const finalArea = updatedFormData.area === 'Other' ? updatedFormData.customArea.trim() : updatedFormData.area;
+      
+      const newOrder = {
+        _id: orderId,
+        name: updatedFormData.name,
+        phone: updatedFormData.phone,
+        place: updatedFormData.place,
+        area: finalArea || '',
+        packType: updatedFormData.packType,
+        packs: updatedFormData.packs,
+        total: totalAmount,
+        note: updatedFormData.note || '',
+        googleMapsLink: updatedFormData.googleMapsLink || '',
+        createdAt: new Date().toISOString(),
+        agentName: isAgentMode ? updatedFormData.agentName.trim() : '',
+        status: 'Pending'
+      };
 
-        // Save order in localStorage
-        const localOrders = JSON.parse(localStorage.getItem('biriyani_orders') || '[]');
-        localOrders.push(newOrder);
-        localStorage.setItem('biriyani_orders', JSON.stringify(localOrders));
+      // Save order in Cloud Firestore
+      await setDoc(doc(db, 'orders', orderId), newOrder);
 
-        toast.success('Order recorded successfully! Please complete payment to confirm. 🍛');
-        setOrderSuccessData(newOrder);
-      } catch (error) {
-        console.error('Order creation error:', error);
-        toast.error('Something went wrong. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }, 600);
+      toast.success('Order recorded successfully! Please complete payment to confirm. 🍛');
+      setOrderSuccessData(newOrder);
+    } catch (error) {
+      console.error('Order creation error:', error);
+      toast.error('Failed to sync order to cloud. Please check your internet connection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
