@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import {
   Send,
@@ -38,6 +38,7 @@ const AREAS = [
   'Pachatiri',
   'Vettom',
   'Murivazhikal',
+  'Other',
 ];
 
 const LandingPage = () => {
@@ -49,6 +50,7 @@ const LandingPage = () => {
     packs: 1,
     note: '',
     area: '',
+    customArea: '',
     latitude: null,
     longitude: null,
     googleMapsLink: '',
@@ -183,6 +185,7 @@ const LandingPage = () => {
       packs: 1,
       note: '',
       area: '',
+      customArea: '',
       latitude: null,
       longitude: null,
       googleMapsLink: '',
@@ -237,6 +240,11 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
       return false;
     }
 
+    if (data.area === 'Other' && !data.customArea.trim()) {
+      toast.error('Please enter your area/location');
+      return false;
+    }
+
     if (data.packs < 1) {
       toast.error('Minimum 1 pack required');
       return false;
@@ -268,12 +276,14 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
     setTimeout(() => {
       try {
         const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
+        const finalArea = updatedFormData.area === 'Other' ? updatedFormData.customArea.trim() : updatedFormData.area;
+        
         const newOrder = {
           _id: orderId,
           name: updatedFormData.name,
           phone: updatedFormData.phone,
           place: updatedFormData.place,
-          area: updatedFormData.area || '',
+          area: finalArea || '',
           packType: updatedFormData.packType,
           packs: updatedFormData.packs,
           total: totalAmount,
@@ -630,6 +640,32 @@ ${newOrder.googleMapsLink ? `📍 *Delivery Location:* \n${newOrder.googleMapsLi
                         </>
                       )}
                     </div>
+
+                    {/* Dynamic Custom Area Text Input */}
+                    <AnimatePresence>
+                      {formData.area === 'Other' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, y: -10 }}
+                          animate={{ opacity: 1, height: 'auto', y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -10 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
+                          className="mt-3 overflow-hidden"
+                        >
+                          <label className="text-xs text-slate-500 font-bold block mb-1.5 flex items-center gap-1">
+                            <MapPin size={12} className="text-brand-lime" />
+                            Enter Custom Area / Location *
+                          </label>
+                          <input
+                            type="text"
+                            required={formData.area === 'Other'}
+                            value={formData.customArea}
+                            onChange={(e) => setFormData(prev => ({ ...prev, customArea: e.target.value }))}
+                            placeholder="Enter your area/location"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none text-sm font-bold shadow-sm animate-in fade-in duration-200"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* PACKAGE TYPE SELECTOR */}
