@@ -24,13 +24,16 @@ import {
   QrCode
 } from 'lucide-react';
 
-import { db } from '../firebase';
+import { db, isFirebaseConfigured } from '../firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import {
+  getLocalOrders,
+  saveLocalOrders,
   saveOrder,
   updateOrderStatus,
   deleteOrder,
-  resetDatabase
+  resetDatabase,
+  mergeLocalAndRemoteOrders
 } from '../persistence';
 
 const AREAS = [
@@ -97,21 +100,34 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Load from localStorage baseline immediately
+    const localOrders = getLocalOrders();
+    setOrders(localOrders);
+
     let unsubscribe = () => {};
-    try {
-      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-      unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const fetchedOrders = [];
-        querySnapshot.forEach((doc) => {
-          fetchedOrders.push({ ...doc.data() });
+    if (isFirebaseConfigured && db) {
+      try {
+        const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+        unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const fetchedOrders = [];
+          querySnapshot.forEach((doc) => {
+            fetchedOrders.push({ ...doc.data() });
+          });
+          
+          // Merge local and remote orders non-destructively
+          const currentLocal = getLocalOrders();
+          const merged = mergeLocalAndRemoteOrders(currentLocal, fetchedOrders);
+          setOrders(merged);
+          saveLocalOrders(merged);
+        }, (error) => {
+          console.error("Firestore subscription error: ", error);
+          toast.error("Failed to connect to real-time cloud database.");
         });
-        setOrders(fetchedOrders);
-      }, (error) => {
-        console.error("Firestore subscription error: ", error);
-        toast.error("Failed to connect to real-time cloud database.");
-      });
-    } catch (error) {
-      console.error("Firestore subscription setup failed:", error);
+      } catch (error) {
+        console.error("Firestore subscription setup failed:", error);
+      }
+    } else {
+      console.warn("Running in local-only database mode.");
     }
 
     return () => unsubscribe();
@@ -202,6 +218,7 @@ const AdminDashboard = () => {
 
       // Save order using centralized persistence
       await saveOrder(orderId, parsedOrder);
+      setOrders(getLocalOrders());
 
       toast.success(existingOrder ? `Updated existing order ${orderId}! 🍛` : `Imported new order ${orderId} successfully! 🍛`);
 
@@ -251,6 +268,7 @@ const AdminDashboard = () => {
 
     // Save order using centralized persistence
     await saveOrder(orderId, manualOrder);
+    setOrders(getLocalOrders());
 
     toast.success(`Created manual order ${orderId} successfully!`);
     setIsAddModalOpen(false);
@@ -272,6 +290,7 @@ const AdminDashboard = () => {
   const handleUpdateStatus = async (id, newStatus) => {
     try {
       await updateOrderStatus(id, newStatus);
+      setOrders(getLocalOrders());
       toast.success(`Order ${id} status updated to ${newStatus}`);
     } catch (err) {
       toast.error("Failed to update status.");
@@ -283,6 +302,7 @@ const AdminDashboard = () => {
     if (window.confirm(`Are you sure you want to permanently delete order ${id}?`)) {
       try {
         await deleteOrder(id);
+        setOrders(getLocalOrders());
         toast.info(`Order ${id} deleted.`);
       } catch (err) {
         toast.error("Failed to delete order.");
@@ -296,6 +316,7 @@ const AdminDashboard = () => {
       if (window.confirm('Double verification: Type CONFIRM below to delete.')) {
         try {
           await resetDatabase();
+          setOrders([]);
           toast.error('All orders wiped clean from cloud database.');
         } catch (err) {
           toast.error("Failed to reset database.");

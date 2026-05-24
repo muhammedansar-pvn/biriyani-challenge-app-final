@@ -24,9 +24,9 @@ import {
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-import { db } from '../firebase';
+import { db, isFirebaseConfigured } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { saveOrder } from '../persistence';
+import { saveOrder, getLocalOrders } from '../persistence';
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -264,12 +264,26 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     setIsTrackLoading(true);
     try {
-      const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
-      const querySnapshot = await getDocs(q);
-      const filtered = [];
-      querySnapshot.forEach((doc) => {
-        filtered.push(doc.data());
-      });
+      let filtered = [];
+      let isCloudRetrieved = false;
+
+      if (isFirebaseConfigured && db) {
+        try {
+          const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((doc) => {
+            filtered.push(doc.data());
+          });
+          isCloudRetrieved = true;
+        } catch (dbError) {
+          console.warn("Firestore query failed, trying local fallback:", dbError);
+        }
+      }
+
+      if (!isCloudRetrieved) {
+        const localOrders = getLocalOrders();
+        filtered = localOrders.filter(o => cleanPhoneNumber(o.phone) === finalTrackPhone);
+      }
 
       // Sort by date descending
       filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
