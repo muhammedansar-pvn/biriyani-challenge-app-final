@@ -95,7 +95,7 @@ const AdminDashboard = () => {
 
     const fetchOrders = async () => {
       try {
-        const response = await fetch('/api/orders');
+        const response = await fetch('/api/orders', { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to retrieve orders');
         const data = await response.json();
         setOrders(data);
