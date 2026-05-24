@@ -27,13 +27,10 @@ import {
 import { db } from '../firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import {
-  getLocalOrders,
-  saveLocalOrders,
   saveOrder,
   updateOrderStatus,
   deleteOrder,
-  resetDatabase,
-  mergeLocalAndRemoteOrders
+  resetDatabase
 } from '../persistence';
 
 const AREAS = [
@@ -100,33 +97,19 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Load from localStorage first as baseline
-    const localOrders = getLocalOrders();
-    setOrders(localOrders);
-
     let unsubscribe = () => {};
     try {
-      if (db && typeof db.app !== 'undefined') {
-        const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-        unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const fetchedOrders = [];
-          querySnapshot.forEach((doc) => {
-            fetchedOrders.push({ ...doc.data() });
-          });
-          
-          // Merge local unsynced and remote synced orders
-          const currentLocal = getLocalOrders();
-          const merged = mergeLocalAndRemoteOrders(currentLocal, fetchedOrders);
-          
-          setOrders(merged);
-          saveLocalOrders(merged);
-        }, (error) => {
-          console.error("Firestore subscription error: ", error);
-          toast.error("Failed to connect to real-time cloud database. Using local backup.");
+      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedOrders = [];
+        querySnapshot.forEach((doc) => {
+          fetchedOrders.push({ ...doc.data() });
         });
-      } else {
-        console.warn("Firestore not configured. Running in offline/local-only mode.");
-      }
+        setOrders(fetchedOrders);
+      }, (error) => {
+        console.error("Firestore subscription error: ", error);
+        toast.error("Failed to connect to real-time cloud database.");
+      });
     } catch (error) {
       console.error("Firestore subscription setup failed:", error);
     }
@@ -219,7 +202,6 @@ const AdminDashboard = () => {
 
       // Save order using centralized persistence
       await saveOrder(orderId, parsedOrder);
-      setOrders(getLocalOrders());
 
       toast.success(existingOrder ? `Updated existing order ${orderId}! 🍛` : `Imported new order ${orderId} successfully! 🍛`);
 
@@ -268,10 +250,9 @@ const AdminDashboard = () => {
     };
 
     // Save order using centralized persistence
-    const cloudSynced = await saveOrder(orderId, manualOrder);
-    setOrders(getLocalOrders());
+    await saveOrder(orderId, manualOrder);
 
-    toast.success(cloudSynced ? `Created manual order ${orderId}!` : `Created manual order ${orderId} locally!`);
+    toast.success(`Created manual order ${orderId} successfully!`);
     setIsAddModalOpen(false);
     setNewOrderForm({
       name: '',
@@ -289,27 +270,36 @@ const AdminDashboard = () => {
 
   // Update Status of an Order
   const handleUpdateStatus = async (id, newStatus) => {
-    const cloudSynced = await updateOrderStatus(id, newStatus);
-    setOrders(getLocalOrders());
-    toast.success(cloudSynced ? `Order ${id} status updated to ${newStatus}` : `Order ${id} status updated locally to ${newStatus}`);
+    try {
+      await updateOrderStatus(id, newStatus);
+      toast.success(`Order ${id} status updated to ${newStatus}`);
+    } catch (err) {
+      toast.error("Failed to update status.");
+    }
   };
 
   // Delete Order
   const handleDeleteOrder = async (id) => {
     if (window.confirm(`Are you sure you want to permanently delete order ${id}?`)) {
-      const cloudSynced = await deleteOrder(id);
-      setOrders(getLocalOrders());
-      toast.info(cloudSynced ? `Order ${id} deleted.` : `Order ${id} deleted locally.`);
+      try {
+        await deleteOrder(id);
+        toast.info(`Order ${id} deleted.`);
+      } catch (err) {
+        toast.error("Failed to delete order.");
+      }
     }
   };
 
   // Reset database completely
   const handleResetDatabase = async () => {
-    if (window.confirm('WARNING: This will delete ALL orders. Are you absolutely sure?')) {
+    if (window.confirm('WARNING: This will delete ALL orders in the cloud database. Are you absolutely sure?')) {
       if (window.confirm('Double verification: Type CONFIRM below to delete.')) {
-        const cloudSynced = await resetDatabase();
-        setOrders([]);
-        toast.error(cloudSynced ? 'All orders wiped clean from database.' : 'All orders wiped clean locally.');
+        try {
+          await resetDatabase();
+          toast.error('All orders wiped clean from cloud database.');
+        } catch (err) {
+          toast.error("Failed to reset database.");
+        }
       }
     }
   };
