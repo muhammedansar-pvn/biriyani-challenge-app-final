@@ -62,7 +62,7 @@ const cleanPhoneNumber = (phone) => {
 const AdminDashboard = () => {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('biriyani_admin_auth') === 'true';
+    return localStorage.getItem('biriyani_admin_auth') === 'true';
   });
   const [pinInput, setPinInput] = useState('');
   const [isPinError, setIsPinError] = useState(false);
@@ -139,7 +139,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     if (pinInput === '2026' || pinInput === '9744' || pinInput === 'admin123') {
       setIsAuthenticated(true);
-      sessionStorage.setItem('biriyani_admin_auth', 'true');
+      localStorage.setItem('biriyani_admin_auth', 'true');
       toast.success('Admin access granted! Welcome back.');
     } else {
       setIsPinError(true);
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
   // Quick logout
   const handleLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem('biriyani_admin_auth');
+    localStorage.removeItem('biriyani_admin_auth');
     toast.info('Logged out from Admin Portal.');
   };
 
@@ -706,7 +706,7 @@ Please keep cash ready. Thank you!`;
     } else if (val === 'OK') {
       if (pinInput === '2026' || pinInput === '9744' || pinInput === 'admin123') {
         setIsAuthenticated(true);
-        sessionStorage.setItem('biriyani_admin_auth', 'true');
+        localStorage.setItem('biriyani_admin_auth', 'true');
         toast.success('Admin access granted! Welcome back.');
       } else {
         setIsPinError(true);
@@ -723,7 +723,7 @@ Please keep cash ready. Thank you!`;
         if (nextInput === '2026' || nextInput === '9744') {
           setTimeout(() => {
             setIsAuthenticated(true);
-            sessionStorage.setItem('biriyani_admin_auth', 'true');
+            localStorage.setItem('biriyani_admin_auth', 'true');
             toast.success('Admin access granted! Welcome back.');
           }, 300);
         }
