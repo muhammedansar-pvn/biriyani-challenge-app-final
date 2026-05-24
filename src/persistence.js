@@ -137,21 +137,23 @@ export const resetDatabase = async () => {
   return false;
 };
 
-// Merge local and remote orders intelligently
+// Merge local and remote orders intelligently without discarding local history
 export const mergeLocalAndRemoteOrders = (local, remote) => {
   const mergedMap = new Map();
 
-  // 1. Keep local orders that are NOT synced yet (offline created/updated)
+  // 1. First, load ALL existing local orders (preserves entire local storage history)
   local.forEach(order => {
-    if (order && order._id && order.synced === false) {
+    if (order && order._id) {
       mergedMap.set(order._id, order);
     }
   });
 
-  // 2. Add remote orders (source of truth for synced ones)
+  // 2. Add or overwrite with remote orders (applies cloud updates on top)
   remote.forEach(order => {
     if (order && order._id) {
+      const existing = mergedMap.get(order._id);
       mergedMap.set(order._id, {
+        ...existing,
         ...order,
         synced: true // Since it came from Firestore
       });
