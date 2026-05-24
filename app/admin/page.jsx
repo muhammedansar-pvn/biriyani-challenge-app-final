@@ -154,29 +154,6 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
-  // Handle on-screen keypad button presses
-  const handleKeypadPress = (key) => {
-    if (key === 'C') {
-      setPinInput('');
-      return;
-    }
-    if (key === 'OK') {
-      handlePinSubmit();
-      return;
-    }
-    if (pinInput.length < 4) {
-      const nextInput = pinInput + key;
-      setPinInput(nextInput);
-      if (nextInput === '2026' || nextInput === '9744') {
-        setTimeout(() => {
-          setIsAuthenticated(true);
-          localStorage.setItem('biriyani_admin_auth', 'true');
-          toast.success('Admin access granted! Welcome back.');
-        }, 300);
-      }
-    }
-  };
-
   // Handle PIN entry
   const handlePinSubmit = (e) => {
     if (e) e.preventDefault();
