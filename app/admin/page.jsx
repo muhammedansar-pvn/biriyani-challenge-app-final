@@ -83,9 +83,9 @@ const AdminDashboard = () => {
     agentName: ''
   });
 
-  // Handle Hydration / Check localStorage Auth on mount
+  // Handle Hydration / Check sessionStorage Auth on mount (clears on tab/browser close)
   useEffect(() => {
-    const isAuth = localStorage.getItem('biriyani_admin_auth') === 'true';
+    const isAuth = sessionStorage.getItem('biriyani_admin_auth') === 'true';
     setIsAuthenticated(isAuth);
   }, []);
 
@@ -105,7 +105,7 @@ const AdminDashboard = () => {
           if (nextInput === '2026' || nextInput === '9744') {
             setTimeout(() => {
               setIsAuthenticated(true);
-              localStorage.setItem('biriyani_admin_auth', 'true');
+              sessionStorage.setItem('biriyani_admin_auth', 'true');
               toast.success('Admin access granted! Welcome back.');
             }, 300);
           }
@@ -115,7 +115,7 @@ const AdminDashboard = () => {
       } else if (e.key === 'Enter') {
         if (pinInput === '2026' || pinInput === '9744') {
           setIsAuthenticated(true);
-          localStorage.setItem('biriyani_admin_auth', 'true');
+          sessionStorage.setItem('biriyani_admin_auth', 'true');
           toast.success('Admin access granted! Welcome back.');
         } else {
           setIsPinError(true);
@@ -159,7 +159,7 @@ const AdminDashboard = () => {
     if (e) e.preventDefault();
     if (pinInput === '2026' || pinInput === '9744' || pinInput === 'admin123') {
       setIsAuthenticated(true);
-      localStorage.setItem('biriyani_admin_auth', 'true');
+      sessionStorage.setItem('biriyani_admin_auth', 'true');
       toast.success('Admin access granted! Welcome back.');
     } else {
       setIsPinError(true);
@@ -172,7 +172,7 @@ const AdminDashboard = () => {
   // Quick logout
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('biriyani_admin_auth');
+    sessionStorage.removeItem('biriyani_admin_auth');
     toast.info('Logged out from Admin Portal.');
   };
 
@@ -794,7 +794,7 @@ Please keep cash ready. Thank you!`;
         if (nextInput === '2026' || nextInput === '9744') {
           setTimeout(() => {
             setIsAuthenticated(true);
-            localStorage.setItem('biriyani_admin_auth', 'true');
+            sessionStorage.setItem('biriyani_admin_auth', 'true');
             toast.success('Admin access granted! Welcome back.');
           }, 300);
         }
