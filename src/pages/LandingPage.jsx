@@ -25,7 +25,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { saveOrder, getLocalOrders } from '../persistence';
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -263,21 +264,39 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     setIsTrackLoading(true);
     try {
-      const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
-      const querySnapshot = await getDocs(q);
-      const filtered = [];
-      querySnapshot.forEach((doc) => {
-        filtered.push(doc.data());
-      });
+      let filtered = [];
+      let isCloudRetrieved = false;
+
+      if (db && typeof db.app !== 'undefined') {
+        try {
+          const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((doc) => {
+            filtered.push(doc.data());
+          });
+          isCloudRetrieved = true;
+        } catch (dbError) {
+          console.warn("Firestore query failed, trying local storage fallback:", dbError);
+        }
+      }
+
+      if (!isCloudRetrieved) {
+        // Fallback to localStorage
+        const localOrders = getLocalOrders();
+        filtered = localOrders.filter(o => cleanPhoneNumber(o.phone) === finalTrackPhone);
+      }
+
       // Sort by date descending
       filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setTrackResult(filtered);
       if (filtered.length === 0) {
         toast.info('No orders found for this phone number');
+      } else if (!isCloudRetrieved) {
+        toast.info('Retrieved orders from offline local storage.');
       }
     } catch (error) {
       console.error('Tracking query failure:', error);
-      toast.error('Failed to retrieve order history from cloud.');
+      toast.error('Failed to retrieve order history.');
     } finally {
       setIsTrackLoading(false);
     }
@@ -493,15 +512,8 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
         status: 'Pending'
       };
 
-      // Save order in Cloud Firestore with a 3-second timeout protection
-      try {
-        await Promise.race([
-          setDoc(doc(db, 'orders', orderId), newOrder),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore sync timeout')), 3000))
-        ]);
-      } catch (dbError) {
-        console.warn("Cloud sync delayed or offline, proceeding to secure order:", dbError);
-      }
+      // Save order using centralized persistence
+      await saveOrder(orderId, newOrder);
 
       toast.success('Order placed successfully! 🍛');
 

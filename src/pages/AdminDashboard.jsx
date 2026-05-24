@@ -25,7 +25,16 @@ import {
 } from 'lucide-react';
 
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import {
+  getLocalOrders,
+  saveLocalOrders,
+  saveOrder,
+  updateOrderStatus,
+  deleteOrder,
+  resetDatabase,
+  mergeLocalAndRemoteOrders
+} from '../persistence';
 
 const AREAS = [
   'Paravanna',
@@ -91,17 +100,36 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const fetchedOrders = [];
-      querySnapshot.forEach((doc) => {
-        fetchedOrders.push({ ...doc.data() });
-      });
-      setOrders(fetchedOrders);
-    }, (error) => {
-      console.error("Firestore subscription error: ", error);
-      toast.error("Failed to connect to real-time cloud database.");
-    });
+    // Load from localStorage first as baseline
+    const localOrders = getLocalOrders();
+    setOrders(localOrders);
+
+    let unsubscribe = () => {};
+    try {
+      if (db && typeof db.app !== 'undefined') {
+        const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+        unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const fetchedOrders = [];
+          querySnapshot.forEach((doc) => {
+            fetchedOrders.push({ ...doc.data() });
+          });
+          
+          // Merge local unsynced and remote synced orders
+          const currentLocal = getLocalOrders();
+          const merged = mergeLocalAndRemoteOrders(currentLocal, fetchedOrders);
+          
+          setOrders(merged);
+          saveLocalOrders(merged);
+        }, (error) => {
+          console.error("Firestore subscription error: ", error);
+          toast.error("Failed to connect to real-time cloud database. Using local backup.");
+        });
+      } else {
+        console.warn("Firestore not configured. Running in offline/local-only mode.");
+      }
+    } catch (error) {
+      console.error("Firestore subscription setup failed:", error);
+    }
 
     return () => unsubscribe();
   }, [isAuthenticated]);
@@ -189,7 +217,10 @@ const AdminDashboard = () => {
         agentName: agentMatch ? agentMatch[1].trim() : ''
       };
 
-      await setDoc(doc(db, 'orders', orderId), parsedOrder);
+      // Save order using centralized persistence
+      await saveOrder(orderId, parsedOrder);
+      setOrders(getLocalOrders());
+
       toast.success(existingOrder ? `Updated existing order ${orderId}! 🍛` : `Imported new order ${orderId} successfully! 🍛`);
 
       setImportText('');
@@ -236,68 +267,49 @@ const AdminDashboard = () => {
       agentName: newOrderForm.agentName.trim()
     };
 
-    try {
-      await setDoc(doc(db, 'orders', orderId), manualOrder);
-      toast.success(`Created manual order ${orderId}!`);
-      setIsAddModalOpen(false);
-      setNewOrderForm({
-        name: '',
-        phone: '',
-        place: '',
-        area: '',
-        packType: 'single',
-        packs: 1,
-        note: '',
-        googleMapsLink: '',
-        status: 'Pending',
-        agentName: ''
-      });
-    } catch (error) {
-      console.error("Error creating manual order: ", error);
-      toast.error("Failed to sync manual order to the cloud.");
-    }
+    // Save order using centralized persistence
+    const cloudSynced = await saveOrder(orderId, manualOrder);
+    setOrders(getLocalOrders());
+
+    toast.success(cloudSynced ? `Created manual order ${orderId}!` : `Created manual order ${orderId} locally!`);
+    setIsAddModalOpen(false);
+    setNewOrderForm({
+      name: '',
+      phone: '',
+      place: '',
+      area: '',
+      packType: 'single',
+      packs: 1,
+      note: '',
+      googleMapsLink: '',
+      status: 'Pending',
+      agentName: ''
+    });
   };
 
   // Update Status of an Order
   const handleUpdateStatus = async (id, newStatus) => {
-    try {
-      await updateDoc(doc(db, 'orders', id), { status: newStatus });
-      toast.success(`Order ${id} status updated to ${newStatus}`);
-    } catch (error) {
-      console.error("Error updating order status: ", error);
-      toast.error("Failed to update status on cloud database.");
-    }
+    const cloudSynced = await updateOrderStatus(id, newStatus);
+    setOrders(getLocalOrders());
+    toast.success(cloudSynced ? `Order ${id} status updated to ${newStatus}` : `Order ${id} status updated locally to ${newStatus}`);
   };
 
   // Delete Order
   const handleDeleteOrder = async (id) => {
     if (window.confirm(`Are you sure you want to permanently delete order ${id}?`)) {
-      try {
-        await deleteDoc(doc(db, 'orders', id));
-        toast.info(`Order ${id} deleted.`);
-      } catch (error) {
-        console.error("Error deleting order: ", error);
-        toast.error("Failed to delete order from cloud database.");
-      }
+      const cloudSynced = await deleteOrder(id);
+      setOrders(getLocalOrders());
+      toast.info(cloudSynced ? `Order ${id} deleted.` : `Order ${id} deleted locally.`);
     }
   };
 
   // Reset database completely
   const handleResetDatabase = async () => {
-    if (window.confirm('WARNING: This will delete ALL orders in the cloud database. Are you absolutely sure?')) {
+    if (window.confirm('WARNING: This will delete ALL orders. Are you absolutely sure?')) {
       if (window.confirm('Double verification: Type CONFIRM below to delete.')) {
-        try {
-          const querySnapshot = await getDocs(collection(db, 'orders'));
-          const batch = writeBatch(db);
-          querySnapshot.forEach((document) => {
-            batch.delete(doc(db, 'orders', document.id));
-          });
-          await batch.commit();
-          toast.error('All orders wiped clean from cloud database.');
-        } catch (error) {
-          console.error("Error resetting database: ", error);
-          toast.error("Failed to wipe database from cloud.");
-        }
+        const cloudSynced = await resetDatabase();
+        setOrders([]);
+        toast.error(cloudSynced ? 'All orders wiped clean from database.' : 'All orders wiped clean locally.');
       }
     }
   };
