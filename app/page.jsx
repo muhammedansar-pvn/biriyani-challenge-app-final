@@ -449,25 +449,8 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
       toast.success('Order placed successfully! 🍛');
 
-      // Auto-launch Step 1 (Admin Message) in a new tab
-      const adminMessage = `--------------------------------
-*🍽️ New Biriyani Challenge Order!*
-
-*Order ID:* ${orderId}
-👤 *Customer:* ${newOrder.name}
-📞 *Phone:* ${newOrder.phone}
-📍 *Location:* ${newOrder.place}
-${newOrder.area ? `🗺️ *Area:* ${newOrder.area}\n` : ''}${newOrder.agentName ? `👤 *Agent:* ${newOrder.agentName}\n` : ''}🍗 *Quantity:* ${newOrder.packs} x ${newOrder.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-💰 *Total Amount:* ₹${newOrder.total}
-📅 *Challenge Date:* 2026 June 11 (Thursday)
-${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n` : ''}${newOrder.googleMapsLink ? `📍 *Location Link:* \n${newOrder.googleMapsLink}\n` : ''}
---------------------------------`;
-
-      const encodedAdmin = encodeURIComponent(adminMessage);
-      window.open(`https://wa.me/918281373768?text=${encodedAdmin}`, '_blank');
-
       setSuccessModalData(newOrder);
-      setAdminSent(true);
+      setAdminSent(false); // Let the user click "Send Details" manually to bypass popup blocker
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error(error.message || 'Something went wrong. Please check your connection and try again.');
