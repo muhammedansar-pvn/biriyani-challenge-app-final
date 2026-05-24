@@ -433,24 +433,37 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
         paymentStatus: 'Pending'
       };
 
-      // Save order using centralized MongoDB backend API
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newOrder)
-      });
+      // Save order using centralized MongoDB backend API with a strict 12-second timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to place order');
+      try {
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newOrder),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to place order');
+        }
+
+        toast.success('Order placed successfully! 🍛');
+
+        setSuccessModalData(newOrder);
+        setAdminSent(false); // Let the user click "Send Details" manually to bypass popup blocker
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Order submission timed out. Please check your internet connection and try again.');
+        }
+        throw fetchError;
       }
-
-      toast.success('Order placed successfully! 🍛');
-
-      setSuccessModalData(newOrder);
-      setAdminSent(false); // Let the user click "Send Details" manually to bypass popup blocker
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error(error.message || 'Something went wrong. Please check your connection and try again.');
