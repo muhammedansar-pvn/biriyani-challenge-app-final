@@ -20,7 +20,7 @@ const Footer = () => {
             <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
             <span className="text-slate-300">|</span>
             <a 
-              href="#/admin" 
+              href="/admin" 
               className="text-slate-450 hover:text-brand-lime transition-colors font-bold flex items-center gap-1"
             >
               Admin Portal
@@ -33,4 +33,3 @@ const Footer = () => {
 };
 
 export default React.memo(Footer);
-

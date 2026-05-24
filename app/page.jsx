@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -14,19 +16,11 @@ import {
   Calendar,
   Lock,
   Users,
-  Copy,
-  Check,
-  ExternalLink,
-  QrCode,
-  Smartphone,
+  Check
 } from 'lucide-react';
 
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-
-import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { saveOrder } from '../persistence';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -87,15 +81,11 @@ const LandingPage = () => {
   // =========================
   // WhatsApp OTP Verification States
   // =========================
-  const [isAgentMode, setIsAgentMode] = useState(() => {
-    return window.location.hash.includes('agent');
-  });
+  const [isAgentMode, setIsAgentMode] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [otpSentPhone, setOtpSentPhone] = useState('');
-  const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
-    return !window.location.hash.includes('agent');
-  });
+  const [isPhoneVerified, setIsPhoneVerified] = useState(true);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
@@ -104,15 +94,17 @@ const LandingPage = () => {
 
   // Synchronize with Hash changes (e.g. going from / to /#agent and vice-versa)
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleHashCheck = () => {
       const hasAgentHash = window.location.hash.includes('agent');
       setIsAgentMode(hasAgentHash);
       setIsPhoneVerified(!hasAgentHash);
       setIsOtpSent(false);
       setGeneratedOtp('');
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+
+    handleHashCheck();
+    window.addEventListener('hashchange', handleHashCheck);
+    return () => window.removeEventListener('hashchange', handleHashCheck);
   }, []);
 
   // Cooldown timers and expiration intervals
@@ -144,7 +136,6 @@ const LandingPage = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-
   // Trigger Send OTP code via WhatsApp deep link
   const handleSendOtp = () => {
     const cleanPhone = cleanPhoneNumber(formData.phone);
@@ -156,7 +147,6 @@ const LandingPage = () => {
     setIsSendingOtp(true);
     setTimeout(() => {
       try {
-        // Generate a random 6 digit code client-side
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedOtp(code);
         setOtpSentPhone(cleanPhone);
@@ -166,7 +156,6 @@ const LandingPage = () => {
 
         const finalArea = formData.area === 'Other' ? formData.customArea.trim() : formData.area;
 
-        // Format Verification WhatsApp Message
         const verificationMsg = `--------------------------------
 🍛 *BIRIYANI CHALLENGE - AGENT VERIFICATION*
 
@@ -182,8 +171,6 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 --------------------------------`;
 
         const encodedMsg = encodeURIComponent(verificationMsg);
-
-        // Open WhatsApp chat to send verification message to customer
         window.open(`https://wa.me/91${cleanPhone}?text=${encodedMsg}`, '_blank');
 
         setIsOtpSent(true);
@@ -205,12 +192,10 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
       if (codeStr === generatedOtp || codeStr === '123456') {
         setIsPhoneVerified(true);
         setIsOtpSent(false);
-        // Lock the verified number in the form
         setFormData(prev => ({ ...prev, phone: otpSentPhone }));
         toast.success('WhatsApp number verified successfully! ✅');
       } else {
         toast.error('Invalid verification code. Try again.');
-        // Clear digits on error for a fresh retry
         setOtpDigits(['', '', '', '', '', '']);
         setTimeout(() => {
           const firstBox = document.getElementById('otp-0');
@@ -228,13 +213,11 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     newDigits[index] = cleanedDigit;
     setOtpDigits(newDigits);
 
-    // Auto-focus shifts forward
     if (cleanedDigit && index < 5) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
       if (nextInput) nextInput.focus();
     }
 
-    // Auto-submission check once all 6 digits are filled
     const fullCode = newDigits.join('');
     if (fullCode.length === 6) {
       handleVerifyOtp(fullCode);
@@ -264,17 +247,13 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     setIsTrackLoading(true);
     try {
-      const filtered = [];
-      const q = query(collection(db, 'orders'), where('phone', '==', finalTrackPhone));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        filtered.push(doc.data());
-      });
-
-      // Sort by date descending
-      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setTrackResult(filtered);
-      if (filtered.length === 0) {
+      const response = await fetch(`/api/orders?phone=${finalTrackPhone}`);
+      if (!response.ok) {
+        throw new Error('Failed to query orders from database');
+      }
+      const data = await response.json();
+      setTrackResult(data);
+      if (data.length === 0) {
         toast.info('No orders found for this phone number');
       }
     } catch (error) {
@@ -292,7 +271,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
   // Geolocation Handlers
   // =========================
   const handleGetLocation = () => {
-    if (!navigator.geolocation) {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser');
       return;
     }
@@ -338,9 +317,6 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     toast.info('Location coordinates removed.');
   };
 
-  // =========================
-  // Handle Input Change
-  // =========================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -349,7 +325,6 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
       if (name === 'packs') {
         val = value === '' ? '' : Math.max(1, parseInt(value) || 1);
       } else if (name === 'phone') {
-        // Allow numbers, spaces, plus, hyphens, and parentheses for flexible typing
         val = value.replace(/[^0-9+\s()-]/g, '');
       }
       return {
@@ -359,9 +334,6 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     });
   };
 
-  // =========================
-  // Reset Form
-  // =========================
   const resetForm = () => {
     setFormData({
       name: '',
@@ -386,37 +358,6 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     setCustomerSent(false);
   };
 
-  // =========================
-  // WhatsApp Message
-  // =========================
-  const sendWhatsApp = () => {
-    const message = `
-*New Biriyani Order!* 🍛
-
-*Name:* ${formData.name}
-*Phone:* ${formData.phone}
-*Place:* ${formData.place}
-${formData.area ? `*Area:* ${formData.area}` : ''}
-*Pack Type:* ${formData.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}
-*Quantity:* ${formData.packs} Pack(s)
-*Total Amount:* ₹${totalAmount}
-${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
-*Note:* ${formData.note || 'None'}
-`;
-
-    const encodedMessage = encodeURIComponent(message);
-
-    const whatsappNumber = '8281373768';
-
-    window.open(
-      `https://wa.me/91${whatsappNumber}?text=${encodedMessage}`,
-      '_blank'
-    );
-  };
-
-  // =========================
-  // Validation
-  // =========================
   const validateForm = (data) => {
     if (!data.name.trim()) {
       toast.error('Please enter your name');
@@ -446,9 +387,6 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
     return true;
   };
 
-  // =========================
-  // Submit Handler
-  // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -464,7 +402,6 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
 
     if (isSubmitting) return;
 
-    // Clean phone number before validation & storage
     const cleanedPhone = cleanPhoneNumber(formData.phone);
     const updatedFormData = {
       ...formData,
@@ -488,15 +425,27 @@ ${formData.googleMapsLink ? `*Location Link:* ${formData.googleMapsLink}` : ''}
         packType: updatedFormData.packType,
         packs: updatedFormData.packs,
         total: totalAmount,
-        note: updatedFormData.note || '',
+        note: updatedFormData.note || 'None',
         googleMapsLink: updatedFormData.googleMapsLink || '',
         createdAt: new Date().toISOString(),
         agentName: isAgentMode ? updatedFormData.agentName.trim() : '',
-        status: 'Pending'
+        status: 'Pending',
+        paymentStatus: 'Pending'
       };
 
-      // Save order using centralized persistence
-      await saveOrder(orderId, newOrder);
+      // Save order using centralized MongoDB backend API
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newOrder)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to place order');
+      }
 
       toast.success('Order placed successfully! 🍛');
 
@@ -521,7 +470,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
       setAdminSent(true);
     } catch (error) {
       console.error('Order creation error:', error);
-      toast.error('Something went wrong. Please check your connection and try again.');
+      toast.error(error.message || 'Something went wrong. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -543,7 +492,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
               alt="Delicious Biriyani"
               className="w-full h-full object-cover opacity-75"
             />
-
             <div className="absolute inset-0 bg-gradient-to-b from-[#dcfce7]/70 via-[#f0fdf4]/85 to-brand-dark"></div>
           </div>
 
@@ -634,10 +582,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                 </button>
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-6"
-              >
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* NAME */}
                   <div>
@@ -645,7 +590,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       <User size={16} />
                       Full Name
                     </label>
-
                     <input
                       type="text"
                       name="name"
@@ -701,7 +645,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       )}
                     </div>
 
-                    {/* Dynamic 6-Digit OTP Keypad Form Panel */}
+                    {/* Dynamic OTP Panel */}
                     <AnimatePresence>
                       {isAgentMode && isOtpSent && !isPhoneVerified && (
                         <motion.div
@@ -720,7 +664,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             </span>
                           </div>
 
-                          {/* 6 Individual Digital Inputs Box Array */}
                           <div className="flex justify-center gap-2 max-w-[280px] mx-auto mb-3">
                             {otpDigits.map((digit, idx) => (
                               <input
@@ -741,11 +684,8 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             <span className="text-slate-400">
                               Expires in: <strong className="text-brand-lime">{formatCountdown(otpCountdown)}</strong>
                             </span>
-
                             {resendCooldown > 0 ? (
-                              <span className="text-slate-400">
-                                Resend in {resendCooldown}s
-                              </span>
+                              <span className="text-slate-400">Resend in {resendCooldown}s</span>
                             ) : (
                               <button
                                 type="button"
@@ -755,22 +695,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                                 Resend Code
                               </button>
                             )}
-                          </div>
-
-                          {/* Manual confirmation bypass */}
-                          <div className="text-center mt-3 border-t border-green-150/40 pt-2.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsPhoneVerified(true);
-                                setIsOtpSent(false);
-                                setFormData(prev => ({ ...prev, phone: otpSentPhone }));
-                                toast.success('WhatsApp number verified manually! ✅');
-                              }}
-                              className="text-slate-450 hover:text-brand-lime text-[9px] font-black cursor-pointer hover:underline bg-transparent border-0"
-                            >
-                              Or, click here to confirm number manually
-                            </button>
                           </div>
                         </motion.div>
                       )}
@@ -784,7 +708,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                         <MapPin size={16} />
                         Delivery Address
                       </label>
-                      
                       <button
                         type="button"
                         onClick={handleGetLocation}
@@ -812,7 +735,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none"
                     />
 
-                    {/* Coordinates confirmation and remove button */}
                     {formData.latitude && formData.longitude && (
                       <div className="mt-2 flex items-center justify-between bg-green-50/50 border border-green-100 rounded-xl px-3 py-2 text-xs text-slate-600">
                         <div className="flex items-center gap-2">
@@ -832,7 +754,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                         <button
                           type="button"
                           onClick={handleRemoveLocation}
-                          className="text-red-500 hover:text-red-700 font-extrabold cursor-pointer transition-all"
+                          className="text-red-500 hover:text-red-700 font-extrabold cursor-pointer transition-all border-none bg-transparent"
                         >
                           Remove Location
                         </button>
@@ -851,7 +773,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       <button
                         type="button"
                         onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-left text-slate-800 focus:border-brand-lime focus:outline-none flex justify-between items-center shadow-sm transition-all hover:border-slate-350"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-left text-slate-800 focus:border-brand-lime focus:outline-none flex justify-between items-center shadow-sm transition-all hover:border-slate-350 bg-transparent"
                       >
                         <span className={formData.area ? 'font-bold text-slate-900' : 'text-slate-400 font-medium'}>
                           {formData.area || 'Select Your Area (Optional)'}
@@ -863,13 +785,9 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                         </span>
                       </button>
 
-                      {/* Dropdown list with background click-outside handler */}
                       {isAreaDropdownOpen && (
                         <>
-                          <div 
-                            className="fixed inset-0 z-20" 
-                            onClick={() => setIsAreaDropdownOpen(false)}
-                          />
+                          <div className="fixed inset-0 z-20" onClick={() => setIsAreaDropdownOpen(false)} />
                           <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                             <div className="p-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
                               <Search size={14} className="text-slate-400 ml-1" />
@@ -884,7 +802,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                                 <button
                                   type="button"
                                   onClick={() => setAreaSearchTerm('')}
-                                  className="text-slate-400 hover:text-slate-650 cursor-pointer"
+                                  className="text-slate-400 hover:text-slate-650 cursor-pointer border-none bg-transparent"
                                 >
                                   <X size={12} />
                                 </button>
@@ -902,10 +820,8 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                                       setIsAreaDropdownOpen(false);
                                       setAreaSearchTerm('');
                                     }}
-                                    className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-all flex items-center justify-between ${
-                                      formData.area === area
-                                        ? 'bg-brand-lime/10 text-brand-lime font-black'
-                                        : 'text-slate-750 hover:bg-slate-50'
+                                    className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-all flex items-center justify-between border-none bg-transparent cursor-pointer ${
+                                      formData.area === area ? 'bg-brand-lime/10 text-brand-lime font-black' : 'text-slate-750 hover:bg-slate-50'
                                     }`}
                                   >
                                     <span>{area}</span>
@@ -913,11 +829,8 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                                   </button>
                                 ))
                               ) : (
-                                <div className="px-4 py-3 text-xs text-slate-400 text-center font-medium">
-                                  No areas found
-                                </div>
+                                <div className="px-4 py-3 text-xs text-slate-400 text-center font-medium">No areas found</div>
                               )}
-                              
                               {formData.area && (
                                 <button
                                   type="button"
@@ -926,7 +839,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                                     setIsAreaDropdownOpen(false);
                                     setAreaSearchTerm('');
                                   }}
-                                  className="w-full text-left px-4 py-2.5 text-xs text-red-500 font-extrabold hover:bg-red-50 transition-all border-t border-slate-100"
+                                  className="w-full text-left px-4 py-2.5 text-xs text-red-500 font-extrabold hover:bg-red-50 transition-all border-t border-slate-100 border-none bg-transparent cursor-pointer"
                                 >
                                   Clear Selection
                                 </button>
@@ -937,7 +850,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       )}
                     </div>
 
-                    {/* Dynamic Custom Area Text Input */}
                     <AnimatePresence>
                       {formData.area === 'Other' && (
                         <motion.div
@@ -957,7 +869,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             value={formData.customArea}
                             onChange={(e) => setFormData(prev => ({ ...prev, customArea: e.target.value }))}
                             placeholder="Enter your area/location"
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none text-sm font-bold shadow-sm animate-in fade-in duration-200"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none text-sm font-bold shadow-sm"
                           />
                         </motion.div>
                       )}
@@ -972,40 +884,30 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Single Pack Option */}
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, packType: 'single' }))}
-                        className={`p-4 rounded-xl border-2 text-left transition-all ${
-                          formData.packType === 'single'
-                            ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer bg-transparent ${
+                          formData.packType === 'single' ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5' : 'border-slate-200 bg-white hover:border-slate-300'
                         }`}
                       >
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-bold text-slate-850 text-base">One Pack</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            formData.packType === 'single' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'
-                          }`}>₹100</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${formData.packType === 'single' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'}`}>₹100</span>
                         </div>
                         <p className="text-xs text-slate-500">Delicious hot single serving pack</p>
                       </button>
 
-                      {/* Family Pack Option */}
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, packType: 'family' }))}
-                        className={`p-4 rounded-xl border-2 text-left transition-all ${
-                          formData.packType === 'family'
-                            ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer bg-transparent ${
+                          formData.packType === 'family' ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5' : 'border-slate-200 bg-white hover:border-slate-300'
                         }`}
                       >
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-bold text-slate-850 text-base">Family Pack</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            formData.packType === 'family' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'
-                          }`}>₹500</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${formData.packType === 'family' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'}`}>₹500</span>
                         </div>
                         <p className="text-xs text-slate-500">Great value for family & friends</p>
                       </button>
@@ -1018,7 +920,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       <Package size={16} />
                       Packs
                     </label>
-
                     <input
                       type="number"
                       name="packs"
@@ -1032,13 +933,8 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
 
                   {/* TOTAL */}
                   <div className="bg-brand-lime/10 border border-brand-lime/20 rounded-xl p-4 flex flex-col justify-center items-center shadow-inner">
-                    <span className="text-sm text-brand-lime font-bold mb-1">
-                      Total Amount
-                    </span>
-
-                    <span className="text-3xl font-extrabold text-brand-lime">
-                      ₹{totalAmount}
-                    </span>
+                    <span className="text-sm text-brand-lime font-bold mb-1">Total Amount</span>
+                    <span className="text-3xl font-extrabold text-brand-lime">₹{totalAmount}</span>
                   </div>
 
                   {/* NOTE */}
@@ -1047,7 +943,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       <MessageSquare size={16} />
                       Additional Note
                     </label>
-
                     <textarea
                       name="note"
                       rows="3"
@@ -1058,8 +953,8 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                     />
                   </div>
 
-                  {/* AGENT MODE TOGGLE & NAME */}
-                  {window.location.hash.includes('agent') && (
+                  {/* AGENT MODE TOGGLE */}
+                  {isAgentMode && (
                     <div className="md:col-span-2 mt-2 bg-[#f8fafc] border border-slate-150 rounded-2xl p-4 flex flex-col gap-3 shadow-inner">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -1079,7 +974,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setIsAgentMode(checked);
-                              setIsPhoneVerified(!checked); // Enforce verification only when checked
+                              setIsPhoneVerified(!checked);
                               setIsOtpSent(false);
                               setGeneratedOtp('');
                             }}
@@ -1096,16 +991,14 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             exit={{ opacity: 0, height: 0 }}
                             className="overflow-hidden border-t border-slate-250/20 pt-3"
                           >
-                            <label className="text-xs text-slate-650 font-bold block mb-1.5">
-                              Agent Name / Code *
-                            </label>
+                            <label className="text-xs text-slate-650 font-bold block mb-1.5">Agent Name / Code *</label>
                             <input
                               type="text"
                               name="agentName"
                               required={isAgentMode}
                               value={formData.agentName}
                               onChange={handleChange}
-                              placeholder="Enter your Agent Name or Code (e.g. Muhammad / A102)"
+                              placeholder="Enter Agent Name/Code"
                               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:border-brand-lime focus:outline-none shadow-sm font-bold"
                             />
                           </motion.div>
@@ -1113,7 +1006,6 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                       </AnimatePresence>
                     </div>
                   )}
-
                 </div>
 
                 {/* SUBMIT */}
@@ -1121,9 +1013,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                   type="submit"
                   disabled={isSubmitting || (isAgentMode && !isPhoneVerified)}
                   className={`w-full font-extrabold text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-8 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg cursor-pointer border-none ${
-                    (!isAgentMode || isPhoneVerified)
-                      ? 'bg-brand-lime hover:bg-brand-yellow text-white shadow-brand-lime/20'
-                      : 'bg-slate-300 text-slate-500 shadow-none'
+                    (!isAgentMode || isPhoneVerified) ? 'bg-brand-lime hover:bg-brand-yellow text-white shadow-brand-lime/20' : 'bg-slate-300 text-slate-500 shadow-none'
                   }`}
                 >
                   {isSubmitting ? (
@@ -1160,7 +1050,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                 setTrackPhone('');
                 setTrackResult(null);
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
             >
               <X size={20} />
             </button>
@@ -1187,7 +1077,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                 <button
                   type="submit"
                   disabled={isTrackLoading}
-                  className="bg-brand-lime hover:bg-brand-yellow text-white font-extrabold px-6 rounded-xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center min-w-[100px] cursor-pointer"
+                  className="bg-brand-lime hover:bg-brand-yellow text-white font-extrabold px-6 rounded-xl transition-all shadow-md shadow-brand-lime/10 flex items-center justify-center min-w-[100px] cursor-pointer border-none"
                 >
                   {isTrackLoading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1239,19 +1129,15 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                             <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                             <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </p>
-                          {order.note && (
+                          {order.note && order.note !== 'None' && (
                             <p className="text-xs text-slate-400 italic mt-1 max-w-[200px] truncate">
                               Note: "{order.note}"
                             </p>
                           )}
                         </div>
                         <div className="text-right">
-                          <span className="block font-black text-brand-lime text-base">
-                            ₹{order.total}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-bold capitalize">
-                            Cash on Delivery
-                          </span>
+                          <span className="block font-black text-brand-lime text-base">₹{order.total}</span>
+                          <span className="text-[10px] text-slate-400 font-bold capitalize">Cash on Delivery</span>
                         </div>
                       </div>
                     ))}
@@ -1263,9 +1149,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
         </div>
       )}
 
-
-      {/* ORDER SENT SUCCESSFULLY MODAL */}
-      {/* ORDER SENT SUCCESSFULLY MODAL (DUAL WHATSAPP FLOW) */}
+      {/* DUAL STEP WHATSAPP FLOW MODAL */}
       {successModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
           <motion.div
@@ -1278,7 +1162,7 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
                 setSuccessModalData(null);
                 resetForm();
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
             >
               <X size={20} />
             </button>
@@ -1287,30 +1171,17 @@ ${newOrder.note && newOrder.note !== 'None' ? `📝 *Notes:* ${newOrder.note}\n`
               <CheckCircle size={36} className="text-brand-lime animate-bounce" />
             </div>
 
-            <h3 className="text-2xl font-black text-slate-950 mb-1">
-              Order Sent Successfully ✅
-            </h3>
-            
-            <p className="text-slate-500 font-bold text-xs mb-6">
-              Complete the 2-step WhatsApp flow below to notify both the Admin and the Customer.
-            </p>
+            <h3 className="text-2xl font-black text-slate-950 mb-1">Order Sent Successfully ✅</h3>
+            <p className="text-slate-500 font-bold text-xs mb-6">Complete the 2-step WhatsApp flow below to notify both the Admin and the Customer.</p>
 
-            {/* DUAL STEP Timeline */}
             <div className="space-y-4 text-left mb-6">
-              
               {/* Step 1: Send to Admin */}
               <div className={`p-4 rounded-2xl border transition-all ${adminSent ? 'bg-green-50/50 border-green-200' : 'bg-slate-50 border-slate-200/60'}`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="space-y-0.5">
-                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      Step 1: Admin Notification
-                    </span>
-                    <span className="block text-sm font-extrabold text-slate-900">
-                      Send Details to Division Crew
-                    </span>
-                    <span className="block text-[10px] text-slate-500 font-bold">
-                      To admin: +91 82813 73768
-                    </span>
+                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Step 1: Admin Notification</span>
+                    <span className="block text-sm font-extrabold text-slate-900">Send Details to Division Crew</span>
+                    <span className="block text-[10px] text-slate-500 font-bold">To admin: +91 82813 73768</span>
                   </div>
                   
                   <button
@@ -1343,15 +1214,9 @@ ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${s
               <div className={`p-4 rounded-2xl border transition-all ${customerSent ? 'bg-green-50/50 border-green-200' : 'bg-slate-50 border-slate-200/60'} ${!adminSent ? 'opacity-85' : ''}`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="space-y-0.5">
-                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      Step 2: Customer Receipt
-                    </span>
-                    <span className="block text-sm font-extrabold text-slate-900">
-                      Send Receipt to Customer
-                    </span>
-                    <span className="block text-[10px] text-slate-500 font-bold">
-                      To customer: +91 {successModalData.phone}
-                    </span>
+                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Step 2: Customer Receipt</span>
+                    <span className="block text-sm font-extrabold text-slate-900">Send Receipt to Customer</span>
+                    <span className="block text-[10px] text-slate-500 font-bold">To customer: +91 {successModalData.phone}</span>
                   </div>
                   
                   <button
@@ -1386,7 +1251,6 @@ Thank you ❤️
                   </button>
                 </div>
               </div>
-
             </div>
 
             {/* Quick Summary Card */}
@@ -1417,7 +1281,6 @@ Thank you ❤️
           </motion.div>
         </div>
       )}
-
 
       <Footer />
     </div>
