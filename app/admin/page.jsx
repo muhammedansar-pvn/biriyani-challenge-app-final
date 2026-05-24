@@ -89,6 +89,47 @@ const AdminDashboard = () => {
     setIsAuthenticated(isAuth);
   }, []);
 
+  // Physical keyboard listener for secure PIN input pad
+  useEffect(() => {
+    if (isAuthenticated) return;
+
+    const handleKeyDown = (e) => {
+      // Bypass if modifier keys are pressed (e.g., Ctrl + C, Cmd + R)
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      if (e.key >= '0' && e.key <= '9') {
+        if (pinInput.length < 4) {
+          const nextInput = pinInput + e.key;
+          setPinInput(nextInput);
+          
+          if (nextInput === '2026' || nextInput === '9744') {
+            setTimeout(() => {
+              setIsAuthenticated(true);
+              localStorage.setItem('biriyani_admin_auth', 'true');
+              toast.success('Admin access granted! Welcome back.');
+            }, 300);
+          }
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        setPinInput('');
+      } else if (e.key === 'Enter') {
+        if (pinInput === '2026' || pinInput === '9744') {
+          setIsAuthenticated(true);
+          localStorage.setItem('biriyani_admin_auth', 'true');
+          toast.success('Admin access granted! Welcome back.');
+        } else {
+          setIsPinError(true);
+          setPinInput('');
+          toast.error('Invalid PIN. Please try again.');
+          setTimeout(() => setIsPinError(false), 500);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAuthenticated, pinInput]);
+
   // Poll database for orders in real-time
   useEffect(() => {
     if (!isAuthenticated) return;
