@@ -1189,6 +1189,13 @@ ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${s
                       const encodedAdmin = encodeURIComponent(adminMessage);
                       window.open(`https://wa.me/918281373768?text=${encodedAdmin}`, '_blank');
                       setAdminSent(true);
+                      
+                      // Auto close modal, reset form, and redirect to main landing page after 500ms
+                      setTimeout(() => {
+                        setSuccessModalData(null);
+                        resetForm();
+                        window.location.href = '/';
+                      }, 500);
                     }}
                     className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border-none flex items-center gap-1.5 w-full sm:w-auto justify-center ${adminSent ? 'bg-green-500 text-white shadow-sm' : 'bg-brand-lime text-white hover:bg-brand-yellow shadow-md shadow-brand-lime/10'}`}
                   >
