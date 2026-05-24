@@ -1159,17 +1159,17 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
               <CheckCircle size={36} className="text-brand-lime animate-bounce" />
             </div>
 
-            <h3 className="text-2xl font-black text-slate-950 mb-1">Order Sent Successfully ✅</h3>
-            <p className="text-slate-500 font-bold text-xs mb-6">Complete the 2-step WhatsApp flow below to notify both the Admin and the Customer.</p>
+            <h3 className="text-2xl font-black text-slate-950 mb-1">Order Placed Successfully! ✅</h3>
+            <p className="text-slate-500 font-bold text-xs mb-6">Complete the steps below to confirm your order on WhatsApp.</p>
 
             <div className="space-y-4 text-left mb-6">
-              {/* Step 1: Send to Admin */}
+              {/* WhatsApp Redirect */}
               <div className={`p-4 rounded-2xl border transition-all ${adminSent ? 'bg-green-50/50 border-green-200' : 'bg-slate-50 border-slate-200/60'}`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="space-y-0.5">
                     <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Step 1: Admin Notification</span>
-                    <span className="block text-sm font-extrabold text-slate-900">Send Details to Division Crew</span>
-                    <span className="block text-[10px] text-slate-500 font-bold">To admin: +91 82813 73768</span>
+                    <span className="block text-sm font-extrabold text-slate-900">Send Details to WhatsApp</span>
+                    <span className="block text-[10px] text-slate-500 font-bold">To: +91 82813 73768</span>
                   </div>
                   
                   <button
@@ -1190,53 +1190,29 @@ ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${s
                       window.open(`https://wa.me/918281373768?text=${encodedAdmin}`, '_blank');
                       setAdminSent(true);
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border-none flex items-center gap-1.5 w-full sm:w-auto justify-center ${adminSent ? 'bg-green-500 text-white shadow-sm' : 'bg-brand-lime text-white hover:bg-brand-yellow shadow-md shadow-brand-lime/10'}`}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border-none flex items-center gap-1.5 w-full sm:w-auto justify-center ${adminSent ? 'bg-green-500 text-white shadow-sm' : 'bg-brand-lime text-white hover:bg-brand-yellow shadow-md shadow-brand-lime/10'}`}
                   >
                     {adminSent ? <Check size={13} /> : null}
-                    {adminSent ? 'Resend Details' : 'Send Details'}
+                    {adminSent ? 'Details Sent' : 'Send Details'}
                   </button>
                 </div>
               </div>
 
-              {/* Step 2: Send to Customer */}
-              <div className={`p-4 rounded-2xl border transition-all ${customerSent ? 'bg-green-50/50 border-green-200' : 'bg-slate-50 border-slate-200/60'} ${!adminSent ? 'opacity-85' : ''}`}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div className="space-y-0.5">
-                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Step 2: Customer Receipt</span>
-                    <span className="block text-sm font-extrabold text-slate-900">Send Receipt to Customer</span>
-                    <span className="block text-[10px] text-slate-500 font-bold">To customer: +91 {successModalData.phone}</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => {
-                      const customerMessage = `--------------------------------
-*🍽️ Biriyani Challenge - Confirmation Receipt*
-
-✅ Your Biriyani Challenge order has been received successfully!
-
-*Order ID:* ${successModalData._id}
-👤 *Name:* ${successModalData.name}
-🍗 *Quantity:* ${successModalData.packs} x ${successModalData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-💰 *Total:* ₹${successModalData.total}
-📅 *Challenge Date:* 2026 June 11 (Thursday)
-🍽️ *Order Status:* Confirmed
-
-💳 *Please complete payment via:*
-GPay: +91 82813 73768
-
-📸 *After payment, please send the payment screenshot here.*
-
-Thank you ❤️
---------------------------------`;
-                      const encodedCustomer = encodeURIComponent(customerMessage);
-                      window.open(`https://wa.me/91${successModalData.phone}?text=${encodedCustomer}`, '_blank');
-                      setCustomerSent(true);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border-none flex items-center gap-1.5 w-full sm:w-auto justify-center ${customerSent ? 'bg-green-500 text-white shadow-sm' : 'bg-brand-lime text-white hover:bg-brand-yellow shadow-md shadow-brand-lime/10 animate-pulse'}`}
-                  >
-                    {customerSent ? <Check size={13} /> : null}
-                    {customerSent ? 'Resend Receipt' : 'Send Receipt'}
-                  </button>
+              {/* Confirmation Receipt Box */}
+              <div className="bg-[#f0fdf4] border border-green-200/60 rounded-2xl p-5 text-slate-800 space-y-3 font-semibold text-xs leading-relaxed">
+                <div className="border-b border-green-150/40 pb-2">
+                  <span className="block text-[10px] font-black text-brand-lime uppercase tracking-wider">Step 2: Payment Receipt</span>
+                  <span className="block text-sm font-extrabold text-slate-900">Your Confirmation & Receipt</span>
+                </div>
+                <div className="space-y-1.5 text-slate-700">
+                  <p>✅ Your Biriyani Challenge order has been received successfully!</p>
+                  <p>🎉 Congratulations! Your order is confirmed.</p>
+                  <p className="font-extrabold text-slate-900 pt-1">💳 Please complete payment via GPay:</p>
+                  <p className="text-sm font-black text-brand-lime flex items-center gap-1">
+                    📲 GPay: <strong className="underline">+91 82813 73768</strong>
+                  </p>
+                  <p>📸 After payment, please send the payment screenshot.</p>
+                  <p className="text-[10px] text-slate-400 font-bold pt-1">Thank you ❤️</p>
                 </div>
               </div>
             </div>
