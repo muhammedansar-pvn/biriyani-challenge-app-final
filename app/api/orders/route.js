@@ -18,7 +18,7 @@ export async function GET(request) {
     return Response.json(orders, { status: 200 });
   } catch (error) {
     console.error("GET orders API error:", error);
-    return Response.json({ error: "Failed to retrieve orders" }, { status: 500 });
+    return Response.json({ error: error.message || "Failed to retrieve orders" }, { status: 500 });
   }
 }
 
@@ -53,7 +53,7 @@ export async function POST(request) {
     return Response.json(newOrder, { status: 201 });
   } catch (error) {
     console.error("POST order API error:", error);
-    return Response.json({ error: "Failed to create order" }, { status: 500 });
+    return Response.json({ error: error.message || "Failed to create order" }, { status: 500 });
   }
 }
 
@@ -64,6 +64,6 @@ export async function DELETE() {
     return Response.json({ message: "All orders wiped clean successfully" }, { status: 200 });
   } catch (error) {
     console.error("DELETE all orders API error:", error);
-    return Response.json({ error: "Failed to reset database" }, { status: 500 });
+    return Response.json({ error: error.message || "Failed to reset database" }, { status: 500 });
   }
 }
