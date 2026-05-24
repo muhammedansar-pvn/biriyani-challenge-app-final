@@ -1,6 +1,14 @@
 import { db } from './firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 
+// Resilient promise timeout helper to prevent hanging on Firestore queries
+const withTimeout = (promise, ms = 2000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore operation timed out')), ms))
+  ]);
+};
+
 // Get all orders from localStorage safely
 export const getLocalOrders = () => {
   try {
@@ -45,7 +53,7 @@ export const saveOrder = async (orderId, orderData) => {
     try {
       // Omit helper properties like 'synced' from the database payload
       const { synced, ...dbPayload } = orderToSave;
-      await setDoc(doc(db, 'orders', orderId), dbPayload);
+      await withTimeout(setDoc(doc(db, 'orders', orderId), dbPayload));
       
       // Mark as synced locally
       const updatedOrders = getLocalOrders();
@@ -75,7 +83,7 @@ export const updateOrderStatus = async (orderId, newStatus) => {
 
   if (db && typeof db.app !== 'undefined') {
     try {
-      await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      await withTimeout(updateDoc(doc(db, 'orders', orderId), { status: newStatus }));
       
       // Mark as synced locally
       const updatedOrders = getLocalOrders();
@@ -100,7 +108,7 @@ export const deleteOrder = async (orderId) => {
 
   if (db && typeof db.app !== 'undefined') {
     try {
-      await deleteDoc(doc(db, 'orders', orderId));
+      await withTimeout(deleteDoc(doc(db, 'orders', orderId)));
       return true;
     } catch (err) {
       console.warn("Could not sync deletion to Firestore:", err);
@@ -115,12 +123,12 @@ export const resetDatabase = async () => {
 
   if (db && typeof db.app !== 'undefined') {
     try {
-      const querySnapshot = await getDocs(collection(db, 'orders'));
+      const querySnapshot = await withTimeout(getDocs(collection(db, 'orders')));
       const batch = writeBatch(db);
       querySnapshot.forEach((document) => {
         batch.delete(doc(db, 'orders', document.id));
       });
-      await batch.commit();
+      await withTimeout(batch.commit());
       return true;
     } catch (err) {
       console.warn("Could not sync database reset to Firestore:", err);
