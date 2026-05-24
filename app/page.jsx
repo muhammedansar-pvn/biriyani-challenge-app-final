@@ -433,41 +433,33 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
         paymentStatus: 'Pending'
       };
 
-      // Save order using centralized MongoDB backend API with a strict 12-second timeout protection
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      // Optimistically open success modal instantly for 0s UI latency
+      setSuccessModalData(newOrder);
+      setAdminSent(false);
+      setCustomerSent(false);
+      setIsSubmitting(false);
+      toast.success('Order processed successfully! 🍛');
 
-      try {
-        const response = await fetch('/api/orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newOrder),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
+      // Save order in the background using centralized MongoDB backend API
+      fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newOrder)
+      }).then(async (response) => {
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to place order');
+          console.error('Background database order sync failed:', errorData.error);
+        } else {
+          console.log('Background database order sync successful!');
         }
-
-        toast.success('Order placed successfully! 🍛');
-
-        setSuccessModalData(newOrder);
-        setAdminSent(false); // Let the user click "Send Details" manually to bypass popup blocker
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Order submission timed out. Please check your internet connection and try again.');
-        }
-        throw fetchError;
-      }
+      }).catch((err) => {
+        console.error('Background database order sync connection error:', err);
+      });
     } catch (error) {
-      console.error('Order creation error:', error);
-      toast.error(error.message || 'Something went wrong. Please check your connection and try again.');
-    } finally {
+      console.error('Order processing error:', error);
+      toast.error('Something went wrong. Please check your connection and try again.');
       setIsSubmitting(false);
     }
   };
