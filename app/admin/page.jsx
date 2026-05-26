@@ -21,7 +21,8 @@ import {
   User,
   DollarSign,
   AlertCircle,
-  FileText
+  FileText,
+  Pencil
 } from 'lucide-react';
 
 const AREAS = [
@@ -67,6 +68,24 @@ const AdminDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Edit Order States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editOrderForm, setEditOrderForm] = useState({
+    name: '',
+    phone: '',
+    place: '',
+    area: '',
+    packType: 'single',
+    packs: 1,
+    note: 'None',
+    googleMapsLink: '',
+    status: 'Pending',
+    paymentStatus: 'Pending',
+    agentName: ''
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   
   // Manual Order Form State
   const [newOrderForm, setNewOrderForm] = useState({
@@ -377,6 +396,83 @@ const AdminDashboard = () => {
       } catch (err) {
         toast.error("Failed to delete order.");
       }
+    }
+  };
+
+  // Open Edit Order Modal
+  const handleOpenEdit = (order) => {
+    setEditingOrder(order);
+    setEditOrderForm({
+      name: order.name,
+      phone: order.phone,
+      place: order.place,
+      area: order.area || '',
+      packType: order.packType,
+      packs: order.packs,
+      note: order.note || 'None',
+      googleMapsLink: order.googleMapsLink || '',
+      status: order.status || 'Pending',
+      paymentStatus: order.paymentStatus || 'Pending',
+      agentName: order.agentName || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Save Edited Order
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editOrderForm.name.trim() || !editOrderForm.phone.trim() || !editOrderForm.place.trim()) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
+
+    const cleanPhone = cleanPhoneNumber(editOrderForm.phone);
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    const pricePerPack = editOrderForm.packType === 'family' ? 500 : 100;
+    const totalAmount = editOrderForm.packs * pricePerPack;
+
+    const updatedPayload = {
+      name: editOrderForm.name.trim(),
+      phone: cleanPhone,
+      place: editOrderForm.place.trim(),
+      area: editOrderForm.area,
+      packType: editOrderForm.packType,
+      packs: parseInt(editOrderForm.packs),
+      total: totalAmount,
+      note: editOrderForm.note.trim() || 'None',
+      googleMapsLink: editOrderForm.googleMapsLink.trim(),
+      status: editOrderForm.status,
+      paymentStatus: editOrderForm.paymentStatus,
+      agentName: editOrderForm.agentName.trim()
+    };
+
+    try {
+      const response = await fetch(`/api/orders/${editingOrder._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPayload)
+      });
+
+      if (!response.ok) throw new Error('Failed to save edited order');
+      
+      const savedData = await response.json();
+
+      // Optimistic/Immediate UI sync
+      setOrders(prev => prev.map(o => o._id === editingOrder._id ? { ...o, ...savedData } : o));
+      
+      toast.success(`Order ${editingOrder._id} updated successfully! 🍛`);
+      setIsEditModalOpen(false);
+      setEditingOrder(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save changes.");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -1162,6 +1258,14 @@ Please keep cash ready. Thank you!`;
                       </button>
 
                       <button
+                        onClick={() => handleOpenEdit(order)}
+                        className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl cursor-pointer transition-all border-none"
+                        title="Edit Order"
+                      >
+                        <Pencil size={15} />
+                      </button>
+
+                      <button
                         onClick={() => handleDeleteOrder(order._id)}
                         className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl cursor-pointer transition-all border-none"
                         title="Delete Order"
@@ -1407,6 +1511,202 @@ Please keep cash ready. Thank you!`;
                   className="bg-brand-lime hover:bg-brand-yellow text-white font-extrabold text-xs px-6 py-3 rounded-xl border-none transition-all cursor-pointer shadow-md shadow-brand-lime/10"
                 >
                   Parse & Import Order
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* EDIT ORDER MODAL */}
+      {isEditModalOpen && editingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-150 relative text-slate-800 my-8"
+          >
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingOrder(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-650 p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-black text-slate-950 mb-2 flex items-center gap-2">
+              <Pencil size={22} className="text-amber-500" />
+              Edit Order: {editingOrder._id}
+            </h3>
+            <p className="text-slate-500 font-bold text-xs mb-6">Modify the order details below. The total price will update automatically.</p>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-600 font-bold block mb-1">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editOrderForm.name}
+                  onChange={(e) => setEditOrderForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editOrderForm.phone}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, phone: e.target.value.replace(/[^0-9+\s()-]/g, '') }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Area / Ward</label>
+                  <select
+                    value={editOrderForm.area}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, area: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
+                  >
+                    <option value="">No Area Select</option>
+                    {AREAS.map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-600 font-bold block mb-1">Delivery Address *</label>
+                <input
+                  type="text"
+                  required
+                  value={editOrderForm.place}
+                  onChange={(e) => setEditOrderForm(p => ({ ...p, place: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Packs Quantity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editOrderForm.packs}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, packs: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Choose Package</label>
+                  <select
+                    value={editOrderForm.packType}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, packType: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
+                  >
+                    <option value="single">Single Pack (₹100)</option>
+                    <option value="family">Family Pack (₹500)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Order Status</label>
+                  <select
+                    value={editOrderForm.status}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, status: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Cooking">Cooking</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Payment Status</label>
+                  <select
+                    value={editOrderForm.paymentStatus}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, paymentStatus: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Failed">Failed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-600 font-bold block mb-1">Agent Name / Code</label>
+                <input
+                  type="text"
+                  value={editOrderForm.agentName}
+                  onChange={(e) => setEditOrderForm(p => ({ ...p, agentName: e.target.value }))}
+                  placeholder="e.g. Agent 102 (Optional)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-600 font-bold block mb-1">Google Maps Coordinates Link</label>
+                <input
+                  type="text"
+                  value={editOrderForm.googleMapsLink}
+                  onChange={(e) => setEditOrderForm(p => ({ ...p, googleMapsLink: e.target.value }))}
+                  placeholder="https://google.com/maps/q=..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-600 font-bold block mb-1">Kitchen Notes</label>
+                <textarea
+                  rows="2"
+                  value={editOrderForm.note}
+                  onChange={(e) => setEditOrderForm(p => ({ ...p, note: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+              </div>
+
+              {/* Dynamic Auto-calculated Total Amount Display */}
+              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex justify-between items-center">
+                <span className="text-xs text-slate-500 font-extrabold uppercase">Calculated Total</span>
+                <span className="text-lg font-black text-brand-lime">
+                  ₹{editOrderForm.packs * (editOrderForm.packType === 'family' ? 500 : 100)}
+                </span>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingOrder(null);
+                  }}
+                  className="bg-slate-100 hover:bg-slate-250 text-slate-700 font-extrabold text-xs px-5 py-3 rounded-xl border-none transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="bg-brand-lime hover:bg-brand-yellow text-white font-extrabold text-xs px-6 py-3 rounded-xl border-none transition-all cursor-pointer shadow-md shadow-brand-lime/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingEdit ? 'Saving Changes...' : 'Save Changes'}
                 </button>
               </div>
             </form>
