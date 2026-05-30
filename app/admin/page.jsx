@@ -897,6 +897,45 @@ Thank you!`;
     window.open(`https://wa.me/91${order.phone}?text=${encoded}`, '_blank');
   };
 
+  const sendCustomerConfirmation = (order) => {
+    let message = '';
+    const paymentStatus = order.paymentStatus || 'Not Paid';
+
+    if (paymentStatus === 'Fully Paid') {
+      message = `السلام عليكم
+
+ബിരിയാണി ചലഞ്ചിൽ നിങ്ങൾ പങ്കാളിയായതിൽ ഞങ്ങൾക്ക് ഏറെ സന്തോഷമുണ്ട്. ❤️
+
+നിങ്ങളുടെ ഓർഡർ സ്ഥിരീകരിച്ചിരിക്കുന്നു. ✅
+
+📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവിന് നിങ്ങളുടെ എല്ലാ വിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് വിനീതമായി അഭ്യർത്ഥിക്കുന്നു.
+
+നിങ്ങളുടെ സഹകരണത്തിന് ഹൃദയം നിറഞ്ഞ നന്ദി. 🤍
+
+جزاكم الله خيرا`;
+    } else {
+      message = `السلام عليكم
+
+ബിരിയാണി ചലഞ്ചിൽ നിങ്ങൾ പങ്കാളിയായതിൽ ഞങ്ങൾക്ക് ഏറെ സന്തോഷമുണ്ട്. ❤️
+
+നിങ്ങളുടെ ഓർഡർ സ്വീകരിച്ചിരിക്കുന്നു. ✅
+
+💳 പെയ്മെന്റ് പൂർത്തീകരിക്കാൻ താഴെ നൽകിയിരിക്കുന്ന GPay നമ്പറിലേക്ക് തുക അയക്കുക:
+
+📲 GPay: +91 82813 73768
+
+📸 പണമടച്ചതിന് ശേഷം സ്ക്രീൻഷോട്ട് ഈ നമ്പറിലേക്ക് അയക്കുക.
+
+📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവിന് നിങ്ങളുടെ എല്ലാ വിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് വിനീതമായി അഭ്യർത്ഥിക്കുന്നു.
+
+جزاكم الله خيرا 🤍`;
+    }
+
+    const cleanPhone = cleanPhoneNumber(order.phone);
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/91${cleanPhone}?text=${encoded}`, '_blank');
+  };
+
   const handlePrintSlip = (order) => {
     const printWindow = window.open('', '_blank', 'width=600,height=800');
     
@@ -1428,6 +1467,15 @@ Thank you!`;
                         title="WhatsApp Out for Delivery"
                       >
                         <ExternalLink size={15} />
+                      </button>
+
+                      <button
+                        onClick={() => sendCustomerConfirmation(order)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2.5 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-black rounded-xl cursor-pointer transition-all border-none"
+                        title="Send Confirmation Message"
+                      >
+                        <MessageSquare size={14} />
+                        <span className="hidden sm:inline">Send Confirmation Message</span>
                       </button>
 
                       <button
