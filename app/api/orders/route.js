@@ -27,10 +27,28 @@ export async function POST(request) {
     await dbConnect();
     const body = await request.json();
 
-    const { _id, name, phone, place, packs, packType } = body;
+    const { _id, name, phone, place } = body;
+    let { packs, packType, singlePacks, familyPacks, paymentStatus, advanceAmount } = body;
+
+    // Backward compatibility for legacy requests
+    if (singlePacks === undefined && familyPacks === undefined) {
+      packs = parseInt(packs) || 1;
+      if (packType === 'family') {
+        familyPacks = packs;
+        singlePacks = 0;
+      } else {
+        singlePacks = packs;
+        familyPacks = 0;
+      }
+    } else {
+      singlePacks = Math.max(0, parseInt(singlePacks) || 0);
+      familyPacks = Math.max(0, parseInt(familyPacks) || 0);
+      packs = singlePacks + familyPacks;
+      packType = familyPacks > 0 && singlePacks > 0 ? 'mixed' : (familyPacks > 0 ? 'family' : 'single');
+    }
 
     // Validate request body
-    if (!_id || !name || !phone || !place || !packs) {
+    if (!_id || !name || !phone || !place) {
       return Response.json({ error: "Missing required order fields" }, { status: 400 });
     }
 
@@ -38,14 +56,40 @@ export async function POST(request) {
       return Response.json({ error: "Minimum 1 pack required" }, { status: 400 });
     }
 
-    const pricePerPack = packType === 'family' ? 500 : 100;
-    const computedTotal = packs * pricePerPack;
+    // Auto-calculate totals
+    const computedSingleTotal = singlePacks * 100;
+    const computedFamilyTotal = familyPacks * 500;
+    const computedTotal = computedSingleTotal + computedFamilyTotal;
+
+    // Manage payment calculations
+    paymentStatus = paymentStatus || 'Not Paid';
+    let computedAdvanceAmount = 0;
+    let computedRemainingAmount = computedTotal;
+
+    if (paymentStatus === 'Advance Paid') {
+      computedAdvanceAmount = Math.max(0, parseFloat(advanceAmount) || 0);
+      computedRemainingAmount = Math.max(0, computedTotal - computedAdvanceAmount);
+    } else if (paymentStatus === 'Fully Paid') {
+      computedAdvanceAmount = 0;
+      computedRemainingAmount = 0;
+    } else {
+      computedAdvanceAmount = 0;
+      computedRemainingAmount = computedTotal;
+    }
 
     const newOrderData = {
       ...body,
+      packs,
+      packType,
+      singlePacks,
+      familyPacks,
+      singleTotal: computedSingleTotal,
+      familyTotal: computedFamilyTotal,
       total: computedTotal,
+      paymentStatus,
+      advanceAmount: computedAdvanceAmount,
+      remainingAmount: computedRemainingAmount,
       status: body.status || 'Pending',
-      paymentStatus: body.paymentStatus || 'Pending',
       createdAt: body.createdAt || new Date().toISOString()
     };
 

@@ -51,8 +51,10 @@ const LandingPage = () => {
     name: '',
     phone: '',
     place: '',
-    packType: 'single', // 'single' or 'family'
+    packType: 'single', // 'single', 'family' or 'mixed'
     packs: 1,
+    singlePacks: 1,
+    familyPacks: 0,
     note: '',
     area: '',
     customArea: '',
@@ -156,14 +158,15 @@ const LandingPage = () => {
 
         const finalArea = formData.area === 'Other' ? formData.customArea.trim() : formData.area;
 
+        const packDetailsText = `${formData.familyPacks > 0 ? `🍗 *Family Pack:* ${formData.familyPacks}\n` : ''}${formData.singlePacks > 0 ? `🍛 *Single Pack:* ${formData.singlePacks}\n` : ''}`;
+
         const verificationMsg = `--------------------------------
 🍛 *BIRIYANI CHALLENGE - AGENT VERIFICATION*
 
 Hello! An SSF Agent is placing a Biriyani Challenge order on your behalf.
 
 👤 *Customer:* ${formData.name}
-🍗 *Quantity:* ${formData.packs} x ${formData.packType === 'family' ? 'Family Pack' : 'One Pack'}
-📍 *Location:* ${formData.place}
+${packDetailsText}📍 *Location:* ${formData.place}
 ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 🔑 *Verification Code:* ${code}
 
@@ -264,8 +267,9 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
     }
   };
 
-  const pricePerPack = formData.packType === 'family' ? 500 : 100;
-  const totalAmount = (parseInt(formData.packs) || 0) * pricePerPack;
+  const singleTotal = (parseInt(formData.singlePacks) || 0) * 100;
+  const familyTotal = (parseInt(formData.familyPacks) || 0) * 500;
+  const totalAmount = singleTotal + familyTotal;
 
   // =========================
   // Geolocation Handlers
@@ -322,15 +326,21 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     setFormData((prev) => {
       let val = value;
-      if (name === 'packs') {
-        val = value === '' ? '' : Math.max(1, parseInt(value) || 1);
+      if (name === 'packs' || name === 'singlePacks' || name === 'familyPacks') {
+        val = value === '' ? 0 : Math.max(0, parseInt(value) || 0);
       } else if (name === 'phone') {
         val = value.replace(/[^0-9+\s()-]/g, '');
       }
-      return {
+      
+      const nextState = {
         ...prev,
         [name]: val
       };
+      
+      nextState.packs = (parseInt(nextState.singlePacks) || 0) + (parseInt(nextState.familyPacks) || 0);
+      nextState.packType = nextState.familyPacks > 0 && nextState.singlePacks > 0 ? 'mixed' : (nextState.familyPacks > 0 ? 'family' : 'single');
+      
+      return nextState;
     });
   };
 
@@ -341,6 +351,8 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
       place: '',
       packType: 'single',
       packs: 1,
+      singlePacks: 1,
+      familyPacks: 0,
       note: '',
       area: '',
       customArea: '',
@@ -379,7 +391,8 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
       return false;
     }
 
-    if (data.packs < 1) {
+    const totalPacks = (parseInt(data.singlePacks) || 0) + (parseInt(data.familyPacks) || 0);
+    if (totalPacks < 1) {
       toast.error('Minimum 1 pack required');
       return false;
     }
@@ -424,13 +437,19 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
         area: finalArea || '',
         packType: updatedFormData.packType,
         packs: updatedFormData.packs,
+        singlePacks: updatedFormData.singlePacks,
+        familyPacks: updatedFormData.familyPacks,
+        singleTotal: updatedFormData.singlePacks * 100,
+        familyTotal: updatedFormData.familyPacks * 500,
         total: totalAmount,
         note: updatedFormData.note || 'None',
         googleMapsLink: updatedFormData.googleMapsLink || '',
         createdAt: new Date().toISOString(),
         agentName: isAgentMode ? updatedFormData.agentName.trim() : '',
         status: 'Pending',
-        paymentStatus: 'Pending'
+        paymentStatus: 'Not Paid',
+        advanceAmount: 0,
+        remainingAmount: totalAmount
       };
 
       // Optimistically open success modal instantly for 0s UI latency
@@ -864,65 +883,66 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                     </AnimatePresence>
                   </div>
 
-                  {/* PACKAGE TYPE SELECTOR */}
-                  <div className="md:col-span-2">
-                    <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-3">
-                      <Package size={16} />
-                      Choose Package
-                    </label>
+                  {/* QUANTITY SELECTORS */}
+                  <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Single Pack Quantity */}
+                    <div>
+                      <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
+                        <Package size={16} />
+                        Single Pack Quantity (₹100)
+                      </label>
+                      <input
+                        type="number"
+                        name="singlePacks"
+                        min="0"
+                        value={formData.singlePacks}
+                        onChange={handleChange}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-850 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none font-bold"
+                      />
+                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, packType: 'single' }))}
-                        className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer bg-transparent ${
-                          formData.packType === 'single' ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5' : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-slate-850 text-base">One Pack</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${formData.packType === 'single' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'}`}>₹100</span>
-                        </div>
-                        <p className="text-xs text-slate-500">Delicious hot single serving pack</p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, packType: 'family' }))}
-                        className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer bg-transparent ${
-                          formData.packType === 'family' ? 'border-brand-lime bg-green-50/50 shadow-md shadow-brand-lime/5' : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-slate-850 text-base">Family Pack</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${formData.packType === 'family' ? 'bg-brand-lime text-white' : 'bg-slate-100 text-slate-500'}`}>₹500</span>
-                        </div>
-                        <p className="text-xs text-slate-500">Great value for family & friends</p>
-                      </button>
+                    {/* Family Pack Quantity */}
+                    <div>
+                      <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
+                        <Package size={16} className="text-brand-lime" />
+                        Family Pack Quantity (₹500)
+                      </label>
+                      <input
+                        type="number"
+                        name="familyPacks"
+                        min="0"
+                        value={formData.familyPacks}
+                        onChange={handleChange}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-850 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none font-bold"
+                      />
                     </div>
                   </div>
 
-                  {/* PACKS */}
-                  <div>
-                    <label className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-2">
-                      <Package size={16} />
-                      Packs
-                    </label>
-                    <input
-                      type="number"
-                      name="packs"
-                      min="1"
-                      required
-                      value={formData.packs}
-                      onChange={handleChange}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:border-brand-lime focus:ring-1 focus:ring-brand-lime focus:outline-none"
-                    />
-                  </div>
-
-                  {/* TOTAL */}
-                  <div className="bg-brand-lime/10 border border-brand-lime/20 rounded-xl p-4 flex flex-col justify-center items-center shadow-inner">
-                    <span className="text-sm text-brand-lime font-bold mb-1">Total Amount</span>
-                    <span className="text-3xl font-extrabold text-brand-lime">₹{totalAmount}</span>
+                  {/* SUMMARY & GRAND TOTAL */}
+                  <div className="md:col-span-2 bg-[#f0fdf4]/60 border border-brand-lime/20 rounded-2xl p-6 shadow-inner text-slate-700">
+                    <h4 className="font-extrabold text-sm text-slate-800 mb-3 uppercase tracking-wider border-b border-green-100 pb-2 animate-pulse">Order Summary Breakdown</h4>
+                    <div className="space-y-2 text-xs sm:text-sm font-semibold">
+                      <div className="flex justify-between">
+                        <span>Single Pack Quantity:</span>
+                        <span className="text-slate-900 font-bold">{formData.singlePacks}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Family Pack Quantity:</span>
+                        <span className="text-slate-900 font-bold">{formData.familyPacks}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500 font-normal pt-1">
+                        <span>Single Pack Total:</span>
+                        <span>₹{formData.singlePacks * 100}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500 font-normal">
+                        <span>Family Pack Total:</span>
+                        <span>₹{formData.familyPacks * 500}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-brand-lime/20 pt-3 text-base sm:text-lg font-black text-slate-900">
+                        <span className="text-brand-lime">Grand Total:</span>
+                        <span className="text-brand-lime">₹{totalAmount}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* NOTE */}
@@ -1094,7 +1114,11 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-extrabold text-slate-900 text-sm">
-                              {order.packs} x {order.packType === 'family' ? 'Family Pack' : 'One Pack'}
+                              {order.familyPacks > 0 && order.singlePacks > 0
+                                ? `${order.familyPacks} Family, ${order.singlePacks} Single`
+                                : order.familyPacks > 0
+                                ? `${order.familyPacks} x Family Pack`
+                                : `${order.singlePacks || order.packs || 0} x Single Pack`}
                             </span>
                             {(() => {
                               const status = order.status || 'Pending';
@@ -1181,8 +1205,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 👤 *Customer:* ${successModalData.name}
 📞 *Phone:* ${successModalData.phone}
 📍 *Location:* ${successModalData.place}
-${successModalData.area ? `🗺️ *Area:* ${successModalData.area}\n` : ''}${successModalData.agentName ? `👤 *Agent:* ${successModalData.agentName}\n` : ''}🍗 *Quantity:* ${successModalData.packs} x ${successModalData.packType === 'family' ? 'Family Pack (₹500)' : 'One Pack (₹100)'}
-💰 *Total Amount:* ₹${successModalData.total}
+${successModalData.area ? `🗺️ *Area:* ${successModalData.area}\n` : ''}${successModalData.agentName ? `👤 *Agent:* ${successModalData.agentName}\n` : ''}${successModalData.familyPacks > 0 ? `🍗 *Family Pack:* ${successModalData.familyPacks} (₹${successModalData.familyPacks * 500})\n` : ''}${successModalData.singlePacks > 0 ? `🍛 *Single Pack:* ${successModalData.singlePacks} (₹${successModalData.singlePacks * 100})\n` : ''}💰 *Total Amount:* ₹${successModalData.total}
 📅 *Challenge Date:* 2026 June 11 (Thursday)
 ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${successModalData.note}\n` : ''}${successModalData.googleMapsLink ? `📍 *Location Link:* \n${successModalData.googleMapsLink}\n` : ''}
 --------------------------------`;
@@ -1233,6 +1256,13 @@ ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${s
               <div className="flex justify-between">
                 <span className="text-slate-400">Customer Name:</span>
                 <span className="text-slate-900 font-bold">{successModalData.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Items:</span>
+                <span className="text-slate-900 font-bold">
+                  {successModalData.familyPacks > 0 ? `${successModalData.familyPacks} Family ` : ''}
+                  {successModalData.singlePacks > 0 ? `${successModalData.singlePacks} Single` : ''}
+                </span>
               </div>
               <div className="flex justify-between border-t border-slate-200/50 pt-2 font-black text-sm">
                 <span className="text-slate-500">Total Amount:</span>

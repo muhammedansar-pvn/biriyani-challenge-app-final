@@ -79,10 +79,14 @@ const AdminDashboard = () => {
     area: '',
     packType: 'single',
     packs: 1,
+    singlePacks: 1,
+    familyPacks: 0,
     note: 'None',
     googleMapsLink: '',
     status: 'Pending',
-    paymentStatus: 'Pending',
+    paymentStatus: 'Not Paid',
+    advanceAmount: 0,
+    remainingAmount: 0,
     agentName: ''
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -95,10 +99,14 @@ const AdminDashboard = () => {
     area: '',
     packType: 'single',
     packs: 1,
+    singlePacks: 1,
+    familyPacks: 0,
     note: 'None',
     googleMapsLink: '',
     status: 'Pending',
-    paymentStatus: 'Pending',
+    paymentStatus: 'Not Paid',
+    advanceAmount: 0,
+    remainingAmount: 0,
     agentName: ''
   });
 
@@ -216,26 +224,63 @@ const AdminDashboard = () => {
       const noteMatch = normalizedText.match(/(?:Special Notes|📝 \*?Notes\*?):\*?\s*(.+)/i);
       const agentMatch = normalizedText.match(/(?:Agent Name\/Code|Agent|👤 \*?Agent\*?):\*?\s*(.+)/i);
       
-      const qtyMatch = normalizedText.match(/Quantity:\*?\s*(\d+)/i);
-      const packTypeMatch = normalizedText.match(/Quantity:\*?\s*\d+\s*x\s*([a-zA-Z\s]+)/i);
+      // Multi-pack parser matching
+      const familyQtyMatch = normalizedText.match(/(?:Family Pack|🍗 \*?Family Pack\*?):\*?\s*(\d+)/i);
+      const singleQtyMatch = normalizedText.match(/(?:Single Pack|🍛 \*?Single Pack\*?|Quantity):\*?\s*(\d+)/i);
+      
+      let familyPacks = familyQtyMatch ? parseInt(familyQtyMatch[1]) : 0;
+      let singlePacks = 0;
 
-      const mapLinkMatch = normalizedText.match(/(https?:\/\/(www\.)?(google\.com\/maps|maps\.google|wa\.me)\S+)/i);
-
-      if (!nameMatch || !phoneMatch || !placeMatch) {
-        toast.error('Failed to parse order. Make sure Name, Phone, and Location are clear.');
-        return;
+      if (familyQtyMatch || singleQtyMatch) {
+        if (familyQtyMatch) {
+          singlePacks = singleQtyMatch ? parseInt(singleQtyMatch[1]) : 0;
+        } else {
+          const qtyText = normalizedText.match(/Quantity:\*?\s*(\d+)/i);
+          const legacyPackType = normalizedText.match(/Quantity:\*?\s*\d+\s*x\s*([a-zA-Z\s]+)/i);
+          if (legacyPackType) {
+            const isFamily = legacyPackType[1].toLowerCase().includes('family');
+            if (isFamily) {
+              familyPacks = qtyText ? parseInt(qtyText[1]) : 0;
+              singlePacks = 0;
+            } else {
+              singlePacks = qtyText ? parseInt(qtyText[1]) : 0;
+              familyPacks = 0;
+            }
+          } else {
+            singlePacks = singleQtyMatch ? parseInt(singleQtyMatch[1]) : 1;
+          }
+        }
+      } else {
+        const qtyMatch = normalizedText.match(/Quantity:\*?\s*(\d+)/i);
+        const packTypeMatch = normalizedText.match(/Quantity:\*?\s*\d+\s*x\s*([a-zA-Z\s]+)/i);
+        const parsedTypeStr = packTypeMatch ? packTypeMatch[1].toLowerCase() : '';
+        const isFamily = parsedTypeStr.includes('family');
+        if (isFamily) {
+          familyPacks = qtyMatch ? parseInt(qtyMatch[1]) : 0;
+          singlePacks = 0;
+        } else {
+          singlePacks = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+          familyPacks = 0;
+        }
       }
 
-      const orderId = idMatch ? idMatch[1] : `BC-${Math.floor(100000 + Math.random() * 900000)}`;
-      const rawPhone = phoneMatch[1].trim();
-      const cleanPhone = cleanPhoneNumber(rawPhone);
+      const singleTotal = singlePacks * 100;
+      const familyTotal = familyPacks * 500;
+      const totalAmount = singleTotal + familyTotal;
+      const packs = singlePacks + familyPacks;
+      const packType = familyPacks > 0 && singlePacks > 0 ? 'mixed' : (familyPacks > 0 ? 'family' : 'single');
 
-      const packs = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-      const parsedTypeStr = packTypeMatch ? packTypeMatch[1].toLowerCase() : '';
-      const packType = parsedTypeStr.includes('family') ? 'family' : 'single';
-      
-      const pricePerPack = packType === 'family' ? 500 : 100;
-      const totalAmount = packs * pricePerPack;
+      const payStatusMatch = normalizedText.match(/(?:Payment Status|Pay):\*?\s*(Not Paid|Advance Paid|Fully Paid|Pending|Paid|Failed)/i);
+      const advMatch = normalizedText.match(/(?:Advance Amount|Advance):\*?\s*(?:₹)?\s*(\d+)/i);
+
+      let paymentStatus = payStatusMatch ? payStatusMatch[1] : (existingOrder ? (existingOrder.paymentStatus || 'Not Paid') : 'Not Paid');
+      if (paymentStatus === 'Pending') paymentStatus = 'Not Paid';
+      if (paymentStatus === 'Paid') paymentStatus = 'Fully Paid';
+      if (paymentStatus === 'Failed') paymentStatus = 'Not Paid';
+
+      let advanceAmount = advMatch ? parseFloat(advMatch[1]) : (existingOrder ? (existingOrder.advanceAmount || 0) : 0);
+      if (paymentStatus !== 'Advance Paid') advanceAmount = 0;
+      const remainingAmount = paymentStatus === 'Fully Paid' ? 0 : Math.max(0, totalAmount - advanceAmount);
 
       const existingOrder = orders.find(o => o._id === orderId);
 
@@ -247,11 +292,17 @@ const AdminDashboard = () => {
         area: areaMatch ? areaMatch[1].trim() : '',
         packType: packType,
         packs: packs,
+        singlePacks,
+        familyPacks,
+        singleTotal,
+        familyTotal,
         total: totalAmount,
         note: noteMatch ? noteMatch[1].trim() : 'None',
         googleMapsLink: mapLinkMatch ? mapLinkMatch[1].trim() : '',
         status: existingOrder ? (existingOrder.status || 'Pending') : 'Pending',
-        paymentStatus: existingOrder ? (existingOrder.paymentStatus || 'Pending') : 'Pending',
+        paymentStatus: paymentStatus,
+        advanceAmount: advanceAmount,
+        remainingAmount: remainingAmount,
         createdAt: existingOrder ? (existingOrder.createdAt || new Date().toISOString()) : new Date().toISOString(),
         agentName: agentMatch ? agentMatch[1].trim() : ''
       };
@@ -298,8 +349,34 @@ const AdminDashboard = () => {
     }
 
     const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
-    const pricePerPack = newOrderForm.packType === 'family' ? 500 : 100;
-    const totalAmount = newOrderForm.packs * pricePerPack;
+    const singlePacks = Math.max(0, parseInt(newOrderForm.singlePacks) || 0);
+    const familyPacks = Math.max(0, parseInt(newOrderForm.familyPacks) || 0);
+
+    if (singlePacks + familyPacks < 1) {
+      toast.error('Please specify at least 1 Single or Family Pack');
+      return;
+    }
+
+    const singleTotal = singlePacks * 100;
+    const familyTotal = familyPacks * 500;
+    const totalAmount = singleTotal + familyTotal;
+
+    const packs = singlePacks + familyPacks;
+    const packType = familyPacks > 0 && singlePacks > 0 ? 'mixed' : (familyPacks > 0 ? 'family' : 'single');
+
+    let advanceAmount = 0;
+    let remainingAmount = totalAmount;
+
+    if (newOrderForm.paymentStatus === 'Advance Paid') {
+      advanceAmount = Math.max(0, parseFloat(newOrderForm.advanceAmount) || 0);
+      remainingAmount = Math.max(0, totalAmount - advanceAmount);
+    } else if (newOrderForm.paymentStatus === 'Fully Paid') {
+      advanceAmount = 0;
+      remainingAmount = 0;
+    } else {
+      advanceAmount = 0;
+      remainingAmount = totalAmount;
+    }
 
     const manualOrder = {
       _id: orderId,
@@ -307,13 +384,19 @@ const AdminDashboard = () => {
       phone: cleanPhone,
       place: newOrderForm.place.trim(),
       area: newOrderForm.area,
-      packType: newOrderForm.packType,
-      packs: parseInt(newOrderForm.packs),
+      packType: packType,
+      packs: packs,
+      singlePacks,
+      familyPacks,
+      singleTotal,
+      familyTotal,
       total: totalAmount,
       note: newOrderForm.note.trim() || 'None',
       googleMapsLink: newOrderForm.googleMapsLink.trim(),
       status: newOrderForm.status,
       paymentStatus: newOrderForm.paymentStatus,
+      advanceAmount,
+      remainingAmount,
       createdAt: new Date().toISOString(),
       agentName: newOrderForm.agentName.trim()
     };
@@ -336,10 +419,14 @@ const AdminDashboard = () => {
         area: '',
         packType: 'single',
         packs: 1,
+        singlePacks: 1,
+        familyPacks: 0,
         note: 'None',
         googleMapsLink: '',
         status: 'Pending',
-        paymentStatus: 'Pending',
+        paymentStatus: 'Not Paid',
+        advanceAmount: 0,
+        remainingAmount: 0,
         agentName: ''
       });
     } catch (err) {
@@ -407,12 +494,16 @@ const AdminDashboard = () => {
       phone: order.phone,
       place: order.place,
       area: order.area || '',
-      packType: order.packType,
-      packs: order.packs,
+      packType: order.packType || 'single',
+      packs: order.packs || 1,
+      singlePacks: order.singlePacks !== undefined ? order.singlePacks : (order.packType === 'family' ? 0 : (order.packs || 1)),
+      familyPacks: order.familyPacks !== undefined ? order.familyPacks : (order.packType === 'family' ? (order.packs || 1) : 0),
       note: order.note || 'None',
       googleMapsLink: order.googleMapsLink || '',
       status: order.status || 'Pending',
-      paymentStatus: order.paymentStatus || 'Pending',
+      paymentStatus: order.paymentStatus || 'Not Paid',
+      advanceAmount: order.advanceAmount || 0,
+      remainingAmount: order.remainingAmount || 0,
       agentName: order.agentName || ''
     });
     setIsEditModalOpen(true);
@@ -433,21 +524,54 @@ const AdminDashboard = () => {
     }
 
     setIsSavingEdit(true);
-    const pricePerPack = editOrderForm.packType === 'family' ? 500 : 100;
-    const totalAmount = editOrderForm.packs * pricePerPack;
+    const singlePacks = Math.max(0, parseInt(editOrderForm.singlePacks) || 0);
+    const familyPacks = Math.max(0, parseInt(editOrderForm.familyPacks) || 0);
+
+    if (singlePacks + familyPacks < 1) {
+      toast.error('Please specify at least 1 Single or Family Pack');
+      setIsSavingEdit(false);
+      return;
+    }
+
+    const singleTotal = singlePacks * 100;
+    const familyTotal = familyPacks * 500;
+    const totalAmount = singleTotal + familyTotal;
+
+    const packs = singlePacks + familyPacks;
+    const packType = familyPacks > 0 && singlePacks > 0 ? 'mixed' : (familyPacks > 0 ? 'family' : 'single');
+
+    let advanceAmount = 0;
+    let remainingAmount = totalAmount;
+
+    if (editOrderForm.paymentStatus === 'Advance Paid') {
+      advanceAmount = Math.max(0, parseFloat(editOrderForm.advanceAmount) || 0);
+      remainingAmount = Math.max(0, totalAmount - advanceAmount);
+    } else if (editOrderForm.paymentStatus === 'Fully Paid') {
+      advanceAmount = 0;
+      remainingAmount = 0;
+    } else {
+      advanceAmount = 0;
+      remainingAmount = totalAmount;
+    }
 
     const updatedPayload = {
       name: editOrderForm.name.trim(),
       phone: cleanPhone,
       place: editOrderForm.place.trim(),
       area: editOrderForm.area,
-      packType: editOrderForm.packType,
-      packs: parseInt(editOrderForm.packs),
+      packType: packType,
+      packs: packs,
+      singlePacks,
+      familyPacks,
+      singleTotal,
+      familyTotal,
       total: totalAmount,
       note: editOrderForm.note.trim() || 'None',
       googleMapsLink: editOrderForm.googleMapsLink.trim(),
       status: editOrderForm.status,
       paymentStatus: editOrderForm.paymentStatus,
+      advanceAmount,
+      remainingAmount,
       agentName: editOrderForm.agentName.trim()
     };
 
@@ -462,7 +586,6 @@ const AdminDashboard = () => {
       
       const savedData = await response.json();
 
-      // Optimistic/Immediate UI sync
       setOrders(prev => prev.map(o => o._id === editingOrder._id ? { ...o, ...savedData } : o));
       
       toast.success(`Order ${editingOrder._id} updated successfully! 🍛`);
@@ -511,13 +634,15 @@ const AdminDashboard = () => {
       'Place',
       'Area',
       'Agent Name/Code',
-      'Pack Type',
-      'Quantity',
+      'Single Packs',
+      'Family Packs',
       'Total Amount',
+      'Payment Status',
+      'Advance Paid',
+      'Remaining Amount',
       'Note',
       'Google Maps Link',
       'Status',
-      'Payment Status',
       'Date Created'
     ];
 
@@ -528,13 +653,15 @@ const AdminDashboard = () => {
       `"${o.place.replace(/"/g, '""')}"`,
       `"${o.area || ''}"`,
       `"${(o.agentName || '').replace(/"/g, '""')}"`,
-      o.packType,
-      o.packs,
+      o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1)),
+      o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0),
       o.total,
+      o.paymentStatus || 'Not Paid',
+      o.advanceAmount || 0,
+      o.remainingAmount !== undefined ? o.remainingAmount : (o.paymentStatus === 'Paid' ? 0 : o.total),
       `"${(o.note || 'None').replace(/"/g, '""')}"`,
       o.googleMapsLink || '',
       o.status,
-      o.paymentStatus || 'Pending',
       new Date(o.createdAt).toLocaleString()
     ]);
 
@@ -560,12 +687,12 @@ const AdminDashboard = () => {
     const printWindow = window.open('', '_blank', 'width=1000,height=800');
     
     const totalPacksSingle = filteredOrders
-      .filter(o => o.packType === 'single' && o.status !== 'Cancelled')
-      .reduce((sum, o) => sum + o.packs, 0);
+      .filter(o => o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + (o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1))), 0);
 
     const totalPacksFamily = filteredOrders
-      .filter(o => o.packType === 'family' && o.status !== 'Cancelled')
-      .reduce((sum, o) => sum + o.packs, 0);
+      .filter(o => o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + (o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0)), 0);
 
     const revenueVal = filteredOrders
       .filter(o => o.status !== 'Cancelled')
@@ -589,14 +716,23 @@ const AdminDashboard = () => {
           ${o.area ? `<div style="font-size: 9px; color: #777; font-weight: bold; margin-top: 2px;">Area: ${o.area}</div>` : ''}
         </td>
         <td style="text-align: center;">
-          <div style="font-weight: bold;">${o.packs} Pack(s)</div>
-          <div style="font-size: 9px; color: #666;">${o.packType === 'family' ? 'Family Pack (₹500)' : 'Single Pack (₹100)'}</div>
+          <div style="font-weight: bold; font-size: 11px;">
+            ${(() => {
+              const sp = o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1));
+              const fp = o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0);
+              return `${fp > 0 ? `${fp} Family` : ''}${fp > 0 && sp > 0 ? ', ' : ''}${sp > 0 ? `${sp} Single` : ''}`;
+            })()}
+          </div>
         </td>
         <td style="text-align: center;">
           <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; background: #fafafa;">
             ${o.status}
           </span>
-          <div style="font-size: 8px; color: #666; margin-top: 3px; font-weight:bold;">Pay: ${o.paymentStatus || 'Pending'}</div>
+          <div style="font-size: 9px; color: #666; margin-top: 3.5px; font-weight: bold;">
+            ${o.paymentStatus || 'Not Paid'}
+            ${o.paymentStatus === 'Advance Paid' ? `<br/><span style="font-size: 8px; color:#15803d;">Adv: ₹${o.advanceAmount || 0}</span>` : ''}
+            ${o.paymentStatus === 'Advance Paid' ? `<br/><span style="font-size: 8px; color:#b91c1c;">Rem: ₹${o.remainingAmount !== undefined ? o.remainingAmount : (o.total - (o.advanceAmount || 0))}</span>` : ''}
+          </div>
         </td>
         <td style="text-align: right; font-weight: bold;">₹${o.total}</td>
       </tr>
@@ -723,14 +859,23 @@ const AdminDashboard = () => {
   const sendWhatsAppStatusUpdate = (order, type) => {
     let message = '';
     
+    const sp = order.singlePacks !== undefined ? order.singlePacks : (order.packType === 'family' ? 0 : (order.packs || 1));
+    const fp = order.familyPacks !== undefined ? order.familyPacks : (order.packType === 'family' ? (order.packs || 1) : 0);
+    const itemBreakdown = `${fp > 0 ? `- Family Packs: ${fp}\n` : ''}${sp > 0 ? `- Single Packs: ${sp}\n` : ''}`;
+    
+    const payStatus = order.paymentStatus || 'Not Paid';
+    const payBreakdown = payStatus === 'Advance Paid' 
+      ? `Advance Paid: ₹${order.advanceAmount || 0} (Remaining: ₹${order.remainingAmount !== undefined ? order.remainingAmount : (order.total - (order.advanceAmount || 0))})`
+      : `${payStatus}`;
+
     if (type === 'confirm') {
       message = `*🍛 BIRIYANI CHALLENGE ORDER CONFIRMED!*
 ----------------------------------
 Hi *${order.name}*, your order *${order._id}* is successfully *CONFIRMED*!
 
 *Order Details:*
-- Quantity: ${order.packs} x ${order.packType === 'family' ? 'Family Pack' : 'One Pack'}
-- Total Amount: ₹${order.total}
+${itemBreakdown}- Total Amount: ₹${order.total}
+- Payment Status: ${payBreakdown}
 - Delivery Location: ${order.place}
 - Delivery Date: *2026 June 11 (Thursday)*
 
@@ -738,14 +883,14 @@ Thank you so much for supporting *Sahithyolsav 2026 Cultural Event*!`;
     } else if (type === 'delivery') {
       message = `*🛵 BIRIYANI CHALLENGE OUT FOR DELIVERY!*
 ----------------------------------
-Hi *${order.name}*, good news! Your order *${order._id}* is *OUT FOR DELIVERY* and our delivery boy is on the way to you!
+Hi *${order.name}*, good news! Your order *${order._id}* is *OUT FOR DELIVERY* and our delivery crew is on the way!
 
 *Summary:*
-- Total Amount: *₹${order.total}* (Cash on Delivery)
-- Quantity: ${order.packs} x ${order.packType === 'family' ? 'Family Pack' : 'One Pack'}
-- Address: ${order.place}
+- Total Amount: *₹${order.total}*
+- Payment Status: ${payBreakdown}
+${itemBreakdown}- Address: ${order.place}
 
-Please keep cash ready. Thank you!`;
+Thank you!`;
     }
 
     const encoded = encodeURIComponent(message);
@@ -811,9 +956,23 @@ Please keep cash ready. Thank you!`;
             
             <hr style="border:none; border-top: 1px dashed #000; margin: 10px 0;" />
             
-            <div class="row" style="font-size:16px;">
+            <div class="row" style="font-size:15px; flex-direction: column; align-items: flex-start;">
               <span class="label">ITEMS:</span>
-              <span><strong>${order.packs} x ${order.packType === 'family' ? 'Family Pack' : 'Single Pack'}</strong></span>
+              <span style="margin-top: 5px;"><strong>
+                ${(() => {
+                  const sp = order.singlePacks !== undefined ? order.singlePacks : (order.packType === 'family' ? 0 : (order.packs || 1));
+                  const fp = order.familyPacks !== undefined ? order.familyPacks : (order.packType === 'family' ? (order.packs || 1) : 0);
+                  return `${fp > 0 ? `${fp} x Family Pack` : ''}${fp > 0 && sp > 0 ? '<br/>' : ''}${sp > 0 ? `${sp} x Single Pack` : ''}`;
+                })()}
+              </strong></span>
+            </div>
+            
+            <div class="row" style="font-size:13px; margin-top: 10px;">
+              <span class="label">PAYMENT:</span>
+              <span><strong>
+                ${order.paymentStatus || 'Not Paid'}
+                ${order.paymentStatus === 'Advance Paid' ? ` (Adv: ₹${order.advanceAmount || 0}, Rem: ₹${order.remainingAmount !== undefined ? order.remainingAmount : (order.total - (order.advanceAmount || 0))})` : ''}
+              </strong></span>
             </div>
             
             ${order.note && order.note !== 'None' ? `
@@ -824,7 +983,7 @@ Please keep cash ready. Thank you!`;
             ` : ''}
             
             <div class="row total">
-              <span>TOTAL (C.O.D):</span>
+              <span>GRAND TOTAL:</span>
               <span>₹${order.total}</span>
             </div>
           </div>
@@ -851,12 +1010,12 @@ Please keep cash ready. Thank you!`;
     .reduce((sum, o) => sum + o.total, 0);
 
   const totalSinglePacks = orders
-    .filter(o => o.packType === 'single' && o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + o.packs, 0);
+    .filter(o => o.status !== 'Cancelled')
+    .reduce((sum, o) => sum + (o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1))), 0);
 
   const totalFamilyPacks = orders
-    .filter(o => o.packType === 'family' && o.status !== 'Cancelled')
-    .reduce((sum, o) => sum + o.packs, 0);
+    .filter(o => o.status !== 'Cancelled')
+    .reduce((sum, o) => sum + (o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0)), 0);
 
   const completedOrders = orders.filter(o => o.status === 'Delivered').length;
 
@@ -1150,10 +1309,12 @@ Please keep cash ready. Thank you!`;
                 <div className="space-y-2 flex-grow">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-black text-slate-900 text-base">{order._id}</span>
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      order.packType === 'family' ? 'bg-brand-lime/10 text-brand-lime border border-brand-lime/20' : 'bg-slate-100 text-slate-650'
-                    }`}>
-                      {order.packs} x {order.packType === 'family' ? 'Family Pack' : 'One Pack'}
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-lime/10 text-brand-lime border border-brand-lime/20`}>
+                      {(() => {
+                        const sp = order.singlePacks !== undefined ? order.singlePacks : (order.packType === 'family' ? 0 : (order.packs || 1));
+                        const fp = order.familyPacks !== undefined ? order.familyPacks : (order.packType === 'family' ? (order.packs || 1) : 0);
+                        return `${fp > 0 ? `${fp} Family` : ''}${fp > 0 && sp > 0 ? ' + ' : ''}${sp > 0 ? `${sp} Single` : ''}`;
+                      })()}
                     </span>
                     {order.agentName && (
                       <span className="text-[10px] bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-black uppercase">
@@ -1193,7 +1354,12 @@ Please keep cash ready. Thank you!`;
                 <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center md:items-stretch lg:items-center gap-3.5 w-full md:w-auto justify-end">
                   <div className="text-right flex flex-col justify-center gap-1 pr-3 border-r border-slate-150/50 hidden lg:flex">
                     <span className="block font-black text-brand-lime text-lg">₹{order.total}</span>
-                    <span className="block text-[9px] text-slate-400 font-black uppercase">C.O.D</span>
+                    <span className="block text-[9px] text-slate-450 font-black uppercase">{order.paymentStatus || 'Not Paid'}</span>
+                    {order.paymentStatus === 'Advance Paid' && (
+                      <span className="block text-[9.5px] text-green-600 font-bold">
+                        Rem: ₹{order.remainingAmount !== undefined ? order.remainingAmount : (order.total - (order.advanceAmount || 0))}
+                      </span>
+                    )}
                   </div>
 
                   {/* Status Dropdowns */}
@@ -1219,13 +1385,20 @@ Please keep cash ready. Thank you!`;
                     <div className="flex items-center justify-between gap-2.5">
                       <span className="text-[9px] text-slate-400 font-black uppercase">Payment:</span>
                       <select
-                        value={order.paymentStatus || 'Pending'}
-                        onChange={(e) => handleUpdatePaymentStatus(order._id, e.target.value)}
+                        value={order.paymentStatus || 'Not Paid'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'Advance Paid') {
+                            handleOpenEdit(order);
+                          } else {
+                            handleUpdatePaymentStatus(order._id, val);
+                          }
+                        }}
                         className="bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-750 p-1.5 focus:outline-none focus:border-brand-lime min-w-[130px]"
                       >
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Failed">Failed</option>
+                        <option value="Not Paid">Not Paid</option>
+                        <option value="Advance Paid">Advance Paid</option>
+                        <option value="Fully Paid">Fully Paid</option>
                       </select>
                     </div>
                   </div>
@@ -1353,27 +1526,27 @@ Please keep cash ready. Thank you!`;
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-600 font-bold block mb-1">Packs Quantity *</label>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Single Packs Qty</label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     required
-                    value={newOrderForm.packs}
-                    onChange={(e) => setNewOrderForm(p => ({ ...p, packs: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    value={newOrderForm.singlePacks}
+                    onChange={(e) => setNewOrderForm(p => ({ ...p, singlePacks: Math.max(0, parseInt(e.target.value) || 0) }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-600 font-bold block mb-1">Choose Package</label>
-                  <select
-                    value={newOrderForm.packType}
-                    onChange={(e) => setNewOrderForm(p => ({ ...p, packType: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
-                  >
-                    <option value="single">Single Pack (₹100)</option>
-                    <option value="family">Family Pack (₹500)</option>
-                  </select>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Family Packs Qty</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newOrderForm.familyPacks}
+                    onChange={(e) => setNewOrderForm(p => ({ ...p, familyPacks: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
                 </div>
               </div>
 
@@ -1401,10 +1574,55 @@ Please keep cash ready. Thank you!`;
                     onChange={(e) => setNewOrderForm(p => ({ ...p, paymentStatus: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
                   >
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Failed">Failed</option>
+                    <option value="Not Paid">Not Paid</option>
+                    <option value="Advance Paid">Advance Paid</option>
+                    <option value="Fully Paid">Fully Paid</option>
                   </select>
+                </div>
+              </div>
+
+              {newOrderForm.paymentStatus === 'Advance Paid' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Advance Amount (₹) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newOrderForm.advanceAmount || ''}
+                    onChange={(e) => setNewOrderForm(p => ({ ...p, advanceAmount: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
+                </div>
+              )}
+
+              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                  <span>Single Packs (₹100):</span>
+                  <span>{newOrderForm.singlePacks || 0}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                  <span>Family Packs (₹500):</span>
+                  <span>{newOrderForm.familyPacks || 0}</span>
+                </div>
+                {newOrderForm.paymentStatus === 'Advance Paid' && (
+                  <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                    <span>Advance Amount Paid:</span>
+                    <span className="text-green-600">-₹{newOrderForm.advanceAmount || 0}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-black">
+                  <span className="text-xs text-slate-500 uppercase">
+                    {newOrderForm.paymentStatus === 'Advance Paid' ? 'Remaining Amount' : 'Grand Total'}
+                  </span>
+                  <span className="text-base text-brand-lime">
+                    ₹{(() => {
+                      const total = ((newOrderForm.singlePacks || 0) * 100) + ((newOrderForm.familyPacks || 0) * 500);
+                      if (newOrderForm.paymentStatus === 'Advance Paid') {
+                        return Math.max(0, total - (newOrderForm.advanceAmount || 0));
+                      }
+                      return total;
+                    })()}
+                  </span>
                 </div>
               </div>
 
@@ -1594,27 +1812,27 @@ Please keep cash ready. Thank you!`;
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-600 font-bold block mb-1">Packs Quantity *</label>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Single Packs Qty</label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     required
-                    value={editOrderForm.packs}
-                    onChange={(e) => setEditOrderForm(p => ({ ...p, packs: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    value={editOrderForm.singlePacks}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, singlePacks: Math.max(0, parseInt(e.target.value) || 0) }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-600 font-bold block mb-1">Choose Package</label>
-                  <select
-                    value={editOrderForm.packType}
-                    onChange={(e) => setEditOrderForm(p => ({ ...p, packType: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
-                  >
-                    <option value="single">Single Pack (₹100)</option>
-                    <option value="family">Family Pack (₹500)</option>
-                  </select>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Family Packs Qty</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editOrderForm.familyPacks}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, familyPacks: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
                 </div>
               </div>
 
@@ -1642,12 +1860,26 @@ Please keep cash ready. Thank you!`;
                     onChange={(e) => setEditOrderForm(p => ({ ...p, paymentStatus: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-850 focus:outline-none focus:border-brand-lime font-semibold"
                   >
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Failed">Failed</option>
+                    <option value="Not Paid">Not Paid</option>
+                    <option value="Advance Paid">Advance Paid</option>
+                    <option value="Fully Paid">Fully Paid</option>
                   </select>
                 </div>
               </div>
+
+              {editOrderForm.paymentStatus === 'Advance Paid' && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Advance Amount (₹) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editOrderForm.advanceAmount || ''}
+                    onChange={(e) => setEditOrderForm(p => ({ ...p, advanceAmount: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-slate-600 font-bold block mb-1">Agent Name / Code</label>
@@ -1682,11 +1914,35 @@ Please keep cash ready. Thank you!`;
               </div>
 
               {/* Dynamic Auto-calculated Total Amount Display */}
-              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex justify-between items-center">
-                <span className="text-xs text-slate-500 font-extrabold uppercase">Calculated Total</span>
-                <span className="text-lg font-black text-brand-lime">
-                  ₹{editOrderForm.packs * (editOrderForm.packType === 'family' ? 500 : 100)}
-                </span>
+              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                  <span>Single Packs (₹100):</span>
+                  <span>{editOrderForm.singlePacks || 0}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                  <span>Family Packs (₹500):</span>
+                  <span>{editOrderForm.familyPacks || 0}</span>
+                </div>
+                {editOrderForm.paymentStatus === 'Advance Paid' && (
+                  <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                    <span>Advance Amount Paid:</span>
+                    <span className="text-green-600">-₹{editOrderForm.advanceAmount || 0}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-black">
+                  <span className="text-xs text-slate-500 uppercase">
+                    {editOrderForm.paymentStatus === 'Advance Paid' ? 'Remaining Amount' : 'Grand Total'}
+                  </span>
+                  <span className="text-base text-brand-lime">
+                    ₹{(() => {
+                      const total = ((editOrderForm.singlePacks || 0) * 100) + ((editOrderForm.familyPacks || 0) * 500);
+                      if (editOrderForm.paymentStatus === 'Advance Paid') {
+                        return Math.max(0, total - (editOrderForm.advanceAmount || 0));
+                      }
+                      return total;
+                    })()}
+                  </span>
+                </div>
               </div>
 
               <div className="pt-3 flex justify-end gap-3.5">

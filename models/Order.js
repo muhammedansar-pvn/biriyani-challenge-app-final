@@ -26,13 +26,29 @@ const OrderSchema = new mongoose.Schema({
   },
   packType: {
     type: String,
-    required: true,
-    enum: ['single', 'family'],
+    required: false,
+    default: 'single',
   },
   packs: {
     type: Number,
-    required: true,
-    min: 1,
+    required: false,
+    default: 1,
+  },
+  singlePacks: {
+    type: Number,
+    default: 0,
+  },
+  familyPacks: {
+    type: Number,
+    default: 0,
+  },
+  singleTotal: {
+    type: Number,
+    default: 0,
+  },
+  familyTotal: {
+    type: Number,
+    default: 0,
   },
   total: {
     type: Number,
@@ -53,8 +69,16 @@ const OrderSchema = new mongoose.Schema({
   },
   paymentStatus: {
     type: String,
-    default: 'Pending',
-    enum: ['Pending', 'Paid', 'Failed'],
+    default: 'Not Paid',
+    enum: ['Not Paid', 'Advance Paid', 'Fully Paid', 'Pending', 'Paid', 'Failed'],
+  },
+  advanceAmount: {
+    type: Number,
+    default: 0,
+  },
+  remainingAmount: {
+    type: Number,
+    default: 0,
   },
   agentName: {
     type: String,
