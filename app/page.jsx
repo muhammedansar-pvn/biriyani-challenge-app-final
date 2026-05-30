@@ -1193,7 +1193,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                   <div className="space-y-0.5">
                     <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Step 1: Admin Notification</span>
                     <span className="block text-sm font-extrabold text-slate-900">Send Details to WhatsApp</span>
-                    <span className="block text-[10px] text-slate-500 font-bold">To: +91 82813 73768</span>
+                    <span className="block text-[10px] text-slate-500 font-bold">To: +91 9744662377</span>
                   </div>
                   
                   <button
@@ -1210,7 +1210,7 @@ ${successModalData.area ? `🗺️ *Area:* ${successModalData.area}\n` : ''}${su
 ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${successModalData.note}\n` : ''}${successModalData.googleMapsLink ? `📍 *Location Link:* \n${successModalData.googleMapsLink}\n` : ''}
 --------------------------------`;
                       const encodedAdmin = encodeURIComponent(adminMessage);
-                      window.open(`https://wa.me/918281373768?text=${encodedAdmin}`, '_blank');
+                      window.open(`https://wa.me/919744662377?text=${encodedAdmin}`, '_blank');
                       setAdminSent(true);
                       
                       // Auto close modal, reset form, and redirect to main landing page after 500ms
@@ -1239,7 +1239,7 @@ ${successModalData.note && successModalData.note !== 'None' ? `📝 *Notes:* ${s
                   <p>🎉 Congratulations! Your order is confirmed.</p>
                   <p className="font-extrabold text-slate-900 pt-1">💳 Please complete payment via GPay:</p>
                   <p className="text-sm font-black text-brand-lime flex items-center gap-1">
-                    📲 GPay: <strong className="underline">+91 82813 73768</strong>
+                    📲 GPay: <strong className="underline">+91 9744662377</strong>
                   </p>
                   <p>📸 After payment, please send the payment screenshot.</p>
                   <p className="text-[10px] text-slate-400 font-bold pt-1">Thank you ❤️</p>
