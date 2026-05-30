@@ -908,7 +908,10 @@ Thank you!`;
 
 നിങ്ങളുടെ ഓർഡർ സ്ഥിരീകരിച്ചിരിക്കുന്നു. ✅
 
-📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവിന് നിങ്ങളുടെ എല്ലാ വിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് വിനീതമായി അഭ്യർത്ഥിക്കുന്നു.
+📅 ബിരിയാണി ചലഞ്ച്:
+ജൂൺ 11, വ്യാഴാഴ്ച
+
+📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവത്തിന് പിന്തുണ നൽകുന്നതിനായാണ് ഈ ബിരിയാണി ചലഞ്ച് സംഘടിപ്പിക്കുന്നത്. നിങ്ങളുടെ എല്ലാവിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് അഭ്യർത്ഥിക്കുന്നു.
 
 നിങ്ങളുടെ സഹകരണത്തിന് ഹൃദയം നിറഞ്ഞ നന്ദി. 🤍
 
@@ -920,13 +923,16 @@ Thank you!`;
 
 നിങ്ങളുടെ ഓർഡർ സ്വീകരിച്ചിരിക്കുന്നു. ✅
 
+📅 ബിരിയാണി ചലഞ്ച്:
+ജൂൺ 11, വ്യാഴാഴ്ച
+
 💳 പെയ്മെന്റ് പൂർത്തീകരിക്കാൻ താഴെ നൽകിയിരിക്കുന്ന GPay നമ്പറിലേക്ക് തുക അയക്കുക:
 
 📲 GPay: +91 82813 73768
 
 📸 പണമടച്ചതിന് ശേഷം സ്ക്രീൻഷോട്ട് ഈ നമ്പറിലേക്ക് അയക്കുക.
 
-📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവിന് നിങ്ങളുടെ എല്ലാ വിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് വിനീതമായി അഭ്യർത്ഥിക്കുന്നു.
+📚 ജൂൺ 20, 21 തീയതികളിൽ നടക്കുന്ന തിരൂർ ഡിവിഷൻ സാഹിത്യോത്സവത്തിന് പിന്തുണ നൽകുന്നതിനായാണ് ഈ ബിരിയാണി ചലഞ്ച് സംഘടിപ്പിക്കുന്നത്. നിങ്ങളുടെ എല്ലാവിധ പിന്തുണയും സഹകരണവും ഉണ്ടാകണമെന്ന് അഭ്യർത്ഥിക്കുന്നു.
 
 جزاكم الله خيرا 🤍`;
     }
@@ -1057,6 +1063,26 @@ Thank you!`;
     .reduce((sum, o) => sum + (o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0)), 0);
 
   const completedOrders = orders.filter(o => o.status === 'Delivered').length;
+
+  // Financial & Payment Analytics
+  const activeOrders = orders.filter(o => o.status !== 'Cancelled');
+  const totalOrdersVal = orders.length;
+  const totalCustomersVal = new Set(orders.map(o => o.phone)).size;
+  const expectedRevenueVal = activeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  const fullyPaidOrders = activeOrders.filter(o => o.paymentStatus === 'Fully Paid');
+  const fullyPaidCount = fullyPaidOrders.length;
+  const fullyPaidAmount = fullyPaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  const advancePaidOrders = activeOrders.filter(o => o.paymentStatus === 'Advance Paid');
+  const advancePaidCount = advancePaidOrders.length;
+  const advanceAmountCollected = advancePaidOrders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
+
+  const notPaidOrders = activeOrders.filter(o => o.paymentStatus === 'Not Paid' || !o.paymentStatus || o.paymentStatus === 'Pending');
+  const notPaidCount = notPaidOrders.length;
+
+  const totalAmountReceived = fullyPaidAmount + advanceAmountCollected;
+  const pendingAmountVal = expectedRevenueVal - totalAmountReceived;
 
   // Filter logic
   const filteredOrders = orders.filter(order => {
@@ -1211,6 +1237,94 @@ Thank you!`;
       </header>
 
       <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* FINANCIAL & PAYMENT SUMMARY */}
+        <div className="bg-white/95 border border-green-200/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="border-b border-slate-100 pb-3.5 flex items-center justify-between">
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <DollarSign className="text-brand-lime w-5 h-5" />
+              Financial & Payment Summary
+            </h2>
+            <span className="text-[10px] bg-brand-lime/10 text-brand-lime font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+              Real-time Analytics
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Expected Revenue */}
+            <div className="bg-[#f8fafc] border border-slate-150 rounded-2xl p-4.5 flex flex-col justify-between shadow-sm">
+              <span className="text-[9.5px] text-slate-450 font-black uppercase tracking-wider block mb-1">📈 Expected Revenue</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900">₹{expectedRevenueVal}</span>
+              <span className="text-[9.5px] text-slate-400 font-bold mt-1">Total active orders</span>
+            </div>
+
+            {/* Total Amount Received */}
+            <div className="bg-green-50/40 border border-green-150 rounded-2xl p-4.5 flex flex-col justify-between shadow-sm">
+              <span className="text-[9.5px] text-slate-450 font-black uppercase tracking-wider block mb-1">💰 Total Received</span>
+              <span className="text-xl sm:text-2xl font-black text-green-600">₹{totalAmountReceived}</span>
+              <span className="text-[9.5px] text-slate-400 font-bold mt-1">Fully Paid + Advances</span>
+            </div>
+
+            {/* Pending Amount */}
+            <div className="bg-red-50/40 border border-red-150 rounded-2xl p-4.5 flex flex-col justify-between shadow-sm">
+              <span className="text-[9.5px] text-slate-450 font-black uppercase tracking-wider block mb-1">🔴 Pending Amount</span>
+              <span className="text-xl sm:text-2xl font-black text-red-500">₹{pendingAmountVal}</span>
+              <span className="text-[9.5px] text-slate-400 font-bold mt-1">Remaining to collect</span>
+            </div>
+
+            {/* Total Orders */}
+            <div className="bg-[#f8fafc] border border-slate-150 rounded-2xl p-4.5 flex flex-col justify-between shadow-sm">
+              <span className="text-[9.5px] text-slate-450 font-black uppercase tracking-wider block mb-1">📦 Total Orders</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900">{totalOrdersVal}</span>
+              <span className="text-[9.5px] text-slate-400 font-bold mt-1">Placed in system</span>
+            </div>
+
+            {/* Total Customers */}
+            <div className="bg-[#f8fafc] border border-slate-150 rounded-2xl p-4.5 flex flex-col justify-between shadow-sm">
+              <span className="text-[9.5px] text-slate-450 font-black uppercase tracking-wider block mb-1">👥 Total Customers</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900">{totalCustomersVal}</span>
+              <span className="text-[9.5px] text-slate-400 font-bold mt-1">Unique contacts</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* Fully Paid Customers */}
+            <div className="bg-green-500/[0.03] border border-green-500/10 rounded-2xl p-5 flex items-center justify-between shadow-inner">
+              <div>
+                <span className="text-[10px] text-green-700/80 font-black uppercase tracking-wider block mb-1">🟢 Fully Paid Customers</span>
+                <span className="text-xl font-black text-green-600">{fullyPaidCount}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[9px] text-slate-400 font-bold block mb-0.5">Amount Collected</span>
+                <span className="text-sm font-black text-green-600">₹{fullyPaidAmount}</span>
+              </div>
+            </div>
+
+            {/* Advance Paid Customers */}
+            <div className="bg-amber-500/[0.03] border border-amber-500/10 rounded-2xl p-5 flex items-center justify-between shadow-inner">
+              <div>
+                <span className="text-[10px] text-amber-700/80 font-black uppercase tracking-wider block mb-1">🟡 Advance Paid Customers</span>
+                <span className="text-xl font-black text-amber-600">{advancePaidCount}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[9px] text-slate-400 font-bold block mb-0.5">Advances Collected</span>
+                <span className="text-sm font-black text-amber-600">₹{advanceAmountCollected}</span>
+              </div>
+            </div>
+
+            {/* Not Paid Customers */}
+            <div className="bg-red-500/[0.03] border border-red-500/10 rounded-2xl p-5 flex items-center justify-between shadow-inner">
+              <div>
+                <span className="text-[10px] text-red-700/80 font-black uppercase tracking-wider block mb-1">🔴 Not Paid Customers</span>
+                <span className="text-xl font-black text-red-500">{notPaidCount}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[9px] text-slate-400 font-bold block mb-0.5">Payment Pending</span>
+                <span className="text-sm font-black text-red-500">{notPaidCount} order(s)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* KPI Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-panel rounded-2xl p-5 bg-white">
