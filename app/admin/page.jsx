@@ -57,6 +57,7 @@ const AdminDashboard = () => {
   // Orders State
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
 
   // UI Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,11 +165,16 @@ const AdminDashboard = () => {
     const fetchOrders = async () => {
       try {
         const response = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Failed to retrieve orders');
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Server responded with status ${response.status}`);
+        }
         const data = await response.json();
         setOrders(data);
+        setApiError(null);
       } catch (err) {
         console.error("Failed to poll orders from MongoDB:", err);
+        setApiError(err.message || 'Failed to retrieve orders');
       } finally {
         setIsLoading(false);
       }
@@ -1445,6 +1451,15 @@ Thank you!`;
           <div className="text-center py-20">
             <div className="w-10 h-10 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-slate-450 font-bold text-sm">Loading orders from MongoDB Atlas...</p>
+          </div>
+        ) : apiError ? (
+          <div className="glass-panel rounded-2xl bg-red-50/50 border border-red-200 text-center py-16 px-4">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3 animate-pulse" />
+            <h3 className="text-base font-black text-red-950 mb-1">Database Sync Error</h3>
+            <p className="text-red-700 text-xs font-semibold max-w-sm mx-auto mb-4">{apiError}</p>
+            <p className="text-[10px] text-slate-400 font-bold max-w-xs mx-auto leading-relaxed">
+              Verify your MONGODB_URI in .env and check database connection status.
+            </p>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="glass-panel rounded-2xl bg-white text-center py-16 px-4">

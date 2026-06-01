@@ -470,11 +470,13 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Background database order sync failed:', errorData.error);
+          toast.error('⚠️ Warning: Server failed to sync your order to the database!');
         } else {
           console.log('Background database order sync successful!');
         }
       }).catch((err) => {
         console.error('Background database order sync connection error:', err);
+        toast.error('⚠️ Connection failed! Order could not be saved to MongoDB.');
       });
     } catch (error) {
       console.error('Order processing error:', error);
