@@ -250,7 +250,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     setIsTrackLoading(true);
     try {
-      const response = await fetch(`/api/orders?phone=${finalTrackPhone}`);
+      const response = await fetch(`/api/orders?phone=${finalTrackPhone}&t=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error('Failed to query orders from database');
       }
