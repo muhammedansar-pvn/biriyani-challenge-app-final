@@ -22,7 +22,8 @@ import {
   DollarSign,
   AlertCircle,
   FileText,
-  Pencil
+  Pencil,
+  Calendar
 } from 'lucide-react';
 
 const AREAS = [
@@ -64,6 +65,7 @@ const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [areaFilter, setAreaFilter] = useState('All');
   const [packTypeFilter, setPackTypeFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'area' | 'daily'
 
   // Modals and Importer States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -862,6 +864,378 @@ const AdminDashboard = () => {
     printWindow.document.close();
   };
 
+  const downloadAreaCSV = () => {
+    if (areaReportData.length === 0) {
+      toast.error('No data to export.');
+      return;
+    }
+
+    const headers = [
+      'Area Name',
+      'Total Orders',
+      'Active Orders',
+      'Single Packs',
+      'Family Packs',
+      'Total Revenue',
+      'Received Amount',
+      'Pending Amount',
+      'Cancelled Orders'
+    ];
+
+    const rows = areaReportData.map(r => [
+      `"${r.areaName.replace(/"/g, '""')}"`,
+      r.totalOrders,
+      r.activeOrders,
+      r.singlePacks,
+      r.familyPacks,
+      r.revenue,
+      r.received,
+      r.pending,
+      r.cancelled
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Biriyani_Area_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Area Report CSV downloaded successfully! 📊');
+  };
+
+  const downloadDailyCSV = () => {
+    if (dailyReportData.length === 0) {
+      toast.error('No data to export.');
+      return;
+    }
+
+    const headers = [
+      'Date',
+      'Total Orders',
+      'Active Orders',
+      'Single Packs',
+      'Family Packs',
+      'Total Revenue',
+      'Received Amount',
+      'Pending Amount',
+      'Cancelled Orders'
+    ];
+
+    const rows = dailyReportData.map(r => [
+      r.date,
+      r.totalOrders,
+      r.activeOrders,
+      r.singlePacks,
+      r.familyPacks,
+      r.revenue,
+      r.received,
+      r.pending,
+      r.cancelled
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Biriyani_Daily_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Daily Report CSV downloaded successfully! 📊');
+  };
+
+  const downloadAreaPDF = () => {
+    if (areaReportData.length === 0) {
+      toast.error('No data to print.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+
+    const grandOrders = areaReportData.reduce((sum, r) => sum + r.totalOrders, 0);
+    const grandActive = areaReportData.reduce((sum, r) => sum + r.activeOrders, 0);
+    const grandSingle = areaReportData.reduce((sum, r) => sum + r.singlePacks, 0);
+    const grandFamily = areaReportData.reduce((sum, r) => sum + r.familyPacks, 0);
+    const grandRevenue = areaReportData.reduce((sum, r) => sum + r.revenue, 0);
+    const grandReceived = areaReportData.reduce((sum, r) => sum + r.received, 0);
+    const grandPending = areaReportData.reduce((sum, r) => sum + r.pending, 0);
+    const grandCancelled = areaReportData.reduce((sum, r) => sum + r.cancelled, 0);
+
+    const rowsHtml = areaReportData
+      .map((r, idx) => `
+        <tr>
+          <td style="text-align: center;">${idx + 1}</td>
+          <td><strong>${r.areaName || 'No Area Specified'}</strong></td>
+          <td style="text-align: center;">${r.totalOrders}</td>
+          <td style="text-align: center;">${r.activeOrders}</td>
+          <td style="text-align: center;">${r.singlePacks}</td>
+          <td style="text-align: center;">${r.familyPacks}</td>
+          <td style="text-align: right; font-weight: bold;">₹${r.revenue}</td>
+          <td style="text-align: right; color: #16a34a; font-weight: bold;">₹${r.received}</td>
+          <td style="text-align: right; color: #dc2626; font-weight: bold;">₹${r.pending}</td>
+          <td style="text-align: center; color: #94a3b8;">${r.cancelled}</td>
+        </tr>
+      `).join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Biriyani Challenge - Area Wise Report</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #333; line-height: 1.4; }
+            .header-container { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #22c55e; padding-bottom: 15px; margin-bottom: 25px; }
+            .title-section h1 { font-size: 24px; font-weight: 800; margin: 0; color: #111; }
+            .title-section p { font-size: 12px; font-weight: bold; margin: 5px 0 0 0; color: #22c55e; text-transform: uppercase; letter-spacing: 1px; }
+            .meta-section { text-align: right; font-size: 11px; color: #555; font-weight: bold; line-height: 1.6; }
+            
+            .kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+            .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 15px; text-align: center; }
+            .kpi-label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+            .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            th { background: #0f172a; color: #fff; font-weight: bold; padding: 10px; text-align: left; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+            tr:nth-child(even) { background: #f8fafc; }
+            
+            .summary-table { margin-top: 20px; border-top: 2px solid #0f172a; font-size: 13px; font-weight: bold; background: #f1f5f9 !important; }
+            .footer-note { text-align: center; margin-top: 40px; font-size: 10px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 15px; font-weight: bold; }
+            
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <div class="title-section">
+              <h1>🍛 AREA WISE SALES REPORT</h1>
+              <p>SSF Tirur Division Event Crew</p>
+            </div>
+            <div class="meta-section">
+              <div>REPORT DATE: ${new Date().toLocaleDateString()}</div>
+              <div>CHALLENGE DATE: 2026 June 11</div>
+            </div>
+          </div>
+          
+          <div class="kpis-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL AREAS</div>
+              <div class="kpi-value">${areaReportData.length}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">SINGLE / FAMILY PACKS</div>
+              <div class="kpi-value">${grandSingle} / ${grandFamily}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL REVENUE</div>
+              <div class="kpi-value" style="color: #22c55e;">₹${grandRevenue}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL RECEIVED</div>
+              <div class="kpi-value" style="color: #16a34a;">₹${grandReceived}</div>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 5%; text-align: center;">Sl</th>
+                <th>Area Name</th>
+                <th style="width: 10%; text-align: center;">Total Orders</th>
+                <th style="width: 10%; text-align: center;">Active Orders</th>
+                <th style="width: 10%; text-align: center;">Single Packs</th>
+                <th style="width: 10%; text-align: center;">Family Packs</th>
+                <th style="width: 12%; text-align: right;">Revenue</th>
+                <th style="width: 12%; text-align: right;">Received</th>
+                <th style="width: 12%; text-align: right;">Pending</th>
+                <th style="width: 9%; text-align: center;">Cancelled</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+              <tr class="summary-table">
+                <td colspan="2" style="text-align: right; padding-right: 15px;">TOTALS:</td>
+                <td style="text-align: center;">${grandOrders}</td>
+                <td style="text-align: center;">${grandActive}</td>
+                <td style="text-align: center;">${grandSingle}</td>
+                <td style="text-align: center;">${grandFamily}</td>
+                <td style="text-align: right; color: #22c55e;">₹${grandRevenue}</td>
+                <td style="text-align: right; color: #16a34a;">₹${grandReceived}</td>
+                <td style="text-align: right; color: #dc2626;">₹${grandPending}</td>
+                <td style="text-align: center;">${grandCancelled}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="footer-note">
+            This document is generated dynamically from the SSF Biriyani Challenge Admin Portal.
+            <div style="margin-top: 5px;">&copy; ${new Date().getFullYear()} SSF Tirur Division. All rights reserved.</div>
+          </div>
+          
+          <div class="no-print" style="text-align: center; margin-top: 30px;">
+            <button onclick="window.print();" style="padding: 12px 25px; background: #22c55e; border: none; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2);">
+              Print / Save as PDF
+            </button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  const downloadDailyPDF = () => {
+    if (dailyReportData.length === 0) {
+      toast.error('No data to print.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+
+    const grandOrders = dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0);
+    const grandActive = dailyReportData.reduce((sum, r) => sum + r.activeOrders, 0);
+    const grandSingle = dailyReportData.reduce((sum, r) => sum + r.singlePacks, 0);
+    const grandFamily = dailyReportData.reduce((sum, r) => sum + r.familyPacks, 0);
+    const grandRevenue = dailyReportData.reduce((sum, r) => sum + r.revenue, 0);
+    const grandReceived = dailyReportData.reduce((sum, r) => sum + r.received, 0);
+    const grandPending = dailyReportData.reduce((sum, r) => sum + r.pending, 0);
+    const grandCancelled = dailyReportData.reduce((sum, r) => sum + r.cancelled, 0);
+
+    const rowsHtml = dailyReportData
+      .map((r, idx) => `
+        <tr>
+          <td style="text-align: center;">${idx + 1}</td>
+          <td><strong>${new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</strong></td>
+          <td style="text-align: center;">${r.totalOrders}</td>
+          <td style="text-align: center;">${r.activeOrders}</td>
+          <td style="text-align: center;">${r.singlePacks}</td>
+          <td style="text-align: center;">${r.familyPacks}</td>
+          <td style="text-align: right; font-weight: bold;">₹${r.revenue}</td>
+          <td style="text-align: right; color: #16a34a; font-weight: bold;">₹${r.received}</td>
+          <td style="text-align: right; color: #dc2626; font-weight: bold;">₹${r.pending}</td>
+          <td style="text-align: center; color: #94a3b8;">${r.cancelled}</td>
+        </tr>
+      `).join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Biriyani Challenge - Daily Sales Report</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #333; line-height: 1.4; }
+            .header-container { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #22c55e; padding-bottom: 15px; margin-bottom: 25px; }
+            .title-section h1 { font-size: 24px; font-weight: 800; margin: 0; color: #111; }
+            .title-section p { font-size: 12px; font-weight: bold; margin: 5px 0 0 0; color: #22c55e; text-transform: uppercase; letter-spacing: 1px; }
+            .meta-section { text-align: right; font-size: 11px; color: #555; font-weight: bold; line-height: 1.6; }
+            
+            .kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+            .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 15px; text-align: center; }
+            .kpi-label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+            .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            th { background: #0f172a; color: #fff; font-weight: bold; padding: 10px; text-align: left; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+            tr:nth-child(even) { background: #f8fafc; }
+            
+            .summary-table { margin-top: 20px; border-top: 2px solid #0f172a; font-size: 13px; font-weight: bold; background: #f1f5f9 !important; }
+            .footer-note { text-align: center; margin-top: 40px; font-size: 10px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 15px; font-weight: bold; }
+            
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <div class="title-section">
+              <h1>🍛 DAILY SALES REPORT</h1>
+              <p>SSF Tirur Division Event Crew</p>
+            </div>
+            <div class="meta-section">
+              <div>REPORT DATE: ${new Date().toLocaleDateString()}</div>
+              <div>CHALLENGE DATE: 2026 June 11</div>
+            </div>
+          </div>
+          
+          <div class="kpis-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL DAYS</div>
+              <div class="kpi-value">${dailyReportData.length}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">SINGLE / FAMILY PACKS</div>
+              <div class="kpi-value">${grandSingle} / ${grandFamily}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL REVENUE</div>
+              <div class="kpi-value" style="color: #22c55e;">₹${grandRevenue}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL RECEIVED</div>
+              <div class="kpi-value" style="color: #16a34a;">₹${grandReceived}</div>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 5%; text-align: center;">Sl</th>
+                <th>Date</th>
+                <th style="width: 10%; text-align: center;">Total Orders</th>
+                <th style="width: 10%; text-align: center;">Active Orders</th>
+                <th style="width: 10%; text-align: center;">Single Packs</th>
+                <th style="width: 10%; text-align: center;">Family Packs</th>
+                <th style="width: 12%; text-align: right;">Revenue</th>
+                <th style="width: 12%; text-align: right;">Received</th>
+                <th style="width: 12%; text-align: right;">Pending</th>
+                <th style="width: 9%; text-align: center;">Cancelled</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+              <tr class="summary-table">
+                <td colspan="2" style="text-align: right; padding-right: 15px;">TOTALS:</td>
+                <td style="text-align: center;">${grandOrders}</td>
+                <td style="text-align: center;">${grandActive}</td>
+                <td style="text-align: center;">${grandSingle}</td>
+                <td style="text-align: center;">${grandFamily}</td>
+                <td style="text-align: right; color: #22c55e;">₹${grandRevenue}</td>
+                <td style="text-align: right; color: #16a34a;">₹${grandReceived}</td>
+                <td style="text-align: right; color: #dc2626;">₹${grandPending}</td>
+                <td style="text-align: center;">${grandCancelled}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="footer-note">
+            This document is generated dynamically from the SSF Biriyani Challenge Admin Portal.
+            <div style="margin-top: 5px;">&copy; ${new Date().getFullYear()} SSF Tirur Division. All rights reserved.</div>
+          </div>
+          
+          <div class="no-print" style="text-align: center; margin-top: 30px;">
+            <button onclick="window.print();" style="padding: 12px 25px; background: #22c55e; border: none; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2);">
+              Print / Save as PDF
+            </button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const sendWhatsAppStatusUpdate = (order, type) => {
     let message = '';
     
@@ -1106,6 +1480,116 @@ Thank you!`;
 
     return matchesSearch && matchesStatus && matchesArea && matchesPackType;
   });
+
+  // Area-wise Grouping Calculation
+  const areaReportData = React.useMemo(() => {
+    const reportMap = {};
+    AREAS.forEach(area => {
+      reportMap[area] = {
+        areaName: area,
+        totalOrders: 0,
+        activeOrders: 0,
+        singlePacks: 0,
+        familyPacks: 0,
+        revenue: 0,
+        received: 0,
+        pending: 0,
+        cancelled: 0,
+      };
+    });
+
+    orders.forEach(o => {
+      const areaKey = o.area ? o.area.trim() : 'No Area Specified';
+      if (!reportMap[areaKey]) {
+        reportMap[areaKey] = {
+          areaName: areaKey,
+          totalOrders: 0,
+          activeOrders: 0,
+          singlePacks: 0,
+          familyPacks: 0,
+          revenue: 0,
+          received: 0,
+          pending: 0,
+          cancelled: 0,
+        };
+      }
+
+      const stats = reportMap[areaKey];
+      stats.totalOrders += 1;
+
+      if (o.status === 'Cancelled') {
+        stats.cancelled += 1;
+      } else {
+        stats.activeOrders += 1;
+        const sp = o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1));
+        const fp = o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0);
+        stats.singlePacks += sp;
+        stats.familyPacks += fp;
+        stats.revenue += (o.total || 0);
+
+        const payStatus = o.paymentStatus || 'Not Paid';
+        let rec = 0;
+        if (payStatus === 'Fully Paid') {
+          rec = (o.total || 0);
+        } else if (payStatus === 'Advance Paid') {
+          rec = (o.advanceAmount || 0);
+        }
+        stats.received += rec;
+        stats.pending += Math.max(0, (o.total || 0) - rec);
+      }
+    });
+
+    return Object.values(reportMap);
+  }, [orders]);
+
+  // Daily Grouping Calculation
+  const dailyReportData = React.useMemo(() => {
+    const reportMap = {};
+
+    orders.forEach(o => {
+      const dateKey = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 'Unknown Date';
+      
+      if (!reportMap[dateKey]) {
+        reportMap[dateKey] = {
+          date: dateKey,
+          totalOrders: 0,
+          activeOrders: 0,
+          singlePacks: 0,
+          familyPacks: 0,
+          revenue: 0,
+          received: 0,
+          pending: 0,
+          cancelled: 0,
+        };
+      }
+
+      const stats = reportMap[dateKey];
+      stats.totalOrders += 1;
+
+      if (o.status === 'Cancelled') {
+        stats.cancelled += 1;
+      } else {
+        stats.activeOrders += 1;
+        const sp = o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1));
+        const fp = o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0);
+        stats.singlePacks += sp;
+        stats.familyPacks += fp;
+        stats.revenue += (o.total || 0);
+
+        const payStatus = o.paymentStatus || 'Not Paid';
+        let rec = 0;
+        if (payStatus === 'Fully Paid') {
+          rec = (o.total || 0);
+        } else if (payStatus === 'Advance Paid') {
+          rec = (o.advanceAmount || 0);
+        }
+        stats.received += rec;
+        stats.pending += Math.max(0, (o.total || 0) - rec);
+      }
+    });
+
+    return Object.values(reportMap).sort((a, b) => b.date.localeCompare(a.date));
+  }, [orders]);
 
   const handleKeypadPress = (val) => {
     if (val === 'C') {
@@ -1356,8 +1840,48 @@ Thank you!`;
           </div>
         </div>
 
-        {/* Filter controls panel */}
-        <div className="glass-panel rounded-2xl p-6 bg-white space-y-4">
+        {/* TAB SWITCHER */}
+        <div className="flex border-b border-green-100/50 gap-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`py-3 px-6 font-black text-xs sm:text-sm border-b-2 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap bg-transparent outline-none ${
+              activeTab === 'orders'
+                ? 'border-brand-lime text-brand-lime'
+                : 'border-transparent text-slate-450 hover:text-slate-700'
+            }`}
+          >
+            <Package size={16} />
+            Orders List
+          </button>
+          <button
+            onClick={() => setActiveTab('area')}
+            className={`py-3 px-6 font-black text-xs sm:text-sm border-b-2 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap bg-transparent outline-none ${
+              activeTab === 'area'
+                ? 'border-brand-lime text-brand-lime'
+                : 'border-transparent text-slate-450 hover:text-slate-700'
+            }`}
+          >
+            <MapPin size={16} />
+            Area Report
+          </button>
+          <button
+            onClick={() => setActiveTab('daily')}
+            className={`py-3 px-6 font-black text-xs sm:text-sm border-b-2 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap bg-transparent outline-none ${
+              activeTab === 'daily'
+                ? 'border-brand-lime text-brand-lime'
+                : 'border-transparent text-slate-450 hover:text-slate-700'
+            }`}
+          >
+            <Calendar size={16} />
+            Daily Report
+          </button>
+        </div>
+
+        {/* TAB CONTENTS */}
+        {activeTab === 'orders' && (
+          <>
+            {/* Filter controls panel */}
+            <div className="glass-panel rounded-2xl p-6 bg-white space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="relative w-full md:max-w-md">
               <Search className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
@@ -1629,7 +2153,179 @@ Thank you!`;
             ))}
           </div>
         )}
-      </main>
+      </>
+    )}
+
+    {activeTab === 'area' && (
+      <div className="space-y-6">
+        <div className="glass-panel rounded-3xl p-6 bg-white space-y-4 border border-green-100 shadow-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-lg font-black text-slate-955">Area-wise Distribution Summary</h3>
+              <p className="text-xs text-slate-500 font-bold">Consolidated order status, pack distributions, and financial statistics grouped by area/location.</p>
+            </div>
+            <div className="flex gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                onClick={downloadAreaCSV}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+              >
+                <Download size={13} />
+                Export Area CSV
+              </button>
+
+              <button
+                onClick={downloadAreaPDF}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+              >
+                <FileText size={13} />
+                Print Area Report
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-150">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-650 font-black uppercase tracking-wider text-[10px]">
+                  <th className="p-4 pl-6">Area Name</th>
+                  <th className="p-4 text-center">Total Orders</th>
+                  <th className="p-4 text-center">Active Orders</th>
+                  <th className="p-4 text-center">Single Packs</th>
+                  <th className="p-4 text-center">Family Packs</th>
+                  <th className="p-4 text-right">Revenue</th>
+                  <th className="p-4 text-right">Received</th>
+                  <th className="p-4 text-right">Pending</th>
+                  <th className="p-4 text-center pr-6">Cancelled</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                {areaReportData.map((row) => (
+                  <tr key={row.areaName} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 pl-6 font-black text-slate-900">{row.areaName || 'No Area Specified'}</td>
+                    <td className="p-4 text-center font-bold">{row.totalOrders}</td>
+                    <td className="p-4 text-center text-slate-500">{row.activeOrders}</td>
+                    <td className="p-4 text-center">{row.singlePacks}</td>
+                    <td className="p-4 text-center">{row.familyPacks}</td>
+                    <td className="p-4 text-right font-black text-slate-950">₹{row.revenue}</td>
+                    <td className="p-4 text-right text-green-600 font-bold">₹{row.received}</td>
+                    <td className="p-4 text-right text-red-500 font-bold">₹{row.pending}</td>
+                    <td className="p-4 text-center text-slate-400 pr-6">{row.cancelled}</td>
+                  </tr>
+                ))}
+                {areaReportData.length === 0 && (
+                  <tr>
+                    <td colSpan="9" className="p-8 text-center text-slate-400 font-medium">No order data available to generate area report.</td>
+                  </tr>
+                )}
+              </tbody>
+              {areaReportData.length > 0 && (
+                <tfoot>
+                  <tr className="bg-slate-50/80 border-t-2 border-slate-200 font-black text-slate-950">
+                    <td className="p-4 pl-6 uppercase text-[10px] tracking-wider text-slate-500">Totals</td>
+                    <td className="p-4 text-center">{areaReportData.reduce((sum, r) => sum + r.totalOrders, 0)}</td>
+                    <td className="p-4 text-center text-slate-600">{areaReportData.reduce((sum, r) => sum + r.activeOrders, 0)}</td>
+                    <td className="p-4 text-center">{areaReportData.reduce((sum, r) => sum + r.singlePacks, 0)}</td>
+                    <td className="p-4 text-center">{areaReportData.reduce((sum, r) => sum + r.familyPacks, 0)}</td>
+                    <td className="p-4 text-right text-brand-lime font-black">₹{areaReportData.reduce((sum, r) => sum + r.revenue, 0)}</td>
+                    <td className="p-4 text-right text-green-600">₹{areaReportData.reduce((sum, r) => sum + r.received, 0)}</td>
+                    <td className="p-4 text-right text-red-500">₹{areaReportData.reduce((sum, r) => sum + r.pending, 0)}</td>
+                    <td className="p-4 text-center text-slate-500 pr-6">{areaReportData.reduce((sum, r) => sum + r.cancelled, 0)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {activeTab === 'daily' && (
+      <div className="space-y-6">
+        <div className="glass-panel rounded-3xl p-6 bg-white space-y-4 border border-green-100 shadow-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-lg font-black text-slate-955">Daily Sales Summary</h3>
+              <p className="text-xs text-slate-500 font-bold">Chronological order sales performance, pack breakdowns, and collections details grouped by day.</p>
+            </div>
+            <div className="flex gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                onClick={downloadDailyCSV}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+              >
+                <Download size={13} />
+                Export Daily CSV
+              </button>
+
+              <button
+                onClick={downloadDailyPDF}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+              >
+                <FileText size={13} />
+                Print Daily Report
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-150">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-650 font-black uppercase tracking-wider text-[10px]">
+                  <th className="p-4 pl-6">Date</th>
+                  <th className="p-4 text-center">Total Orders</th>
+                  <th className="p-4 text-center">Active Orders</th>
+                  <th className="p-4 text-center">Single Packs</th>
+                  <th className="p-4 text-center">Family Packs</th>
+                  <th className="p-4 text-right">Revenue</th>
+                  <th className="p-4 text-right">Received</th>
+                  <th className="p-4 text-right">Pending</th>
+                  <th className="p-4 text-center pr-6">Cancelled</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                {dailyReportData.map((row) => (
+                  <tr key={row.date} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 pl-6 font-black text-slate-900">
+                      {row.date === 'Unknown Date' 
+                        ? 'Unknown Date' 
+                        : new Date(row.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="p-4 text-center font-bold">{row.totalOrders}</td>
+                    <td className="p-4 text-center text-slate-500">{row.activeOrders}</td>
+                    <td className="p-4 text-center">{row.singlePacks}</td>
+                    <td className="p-4 text-center">{row.familyPacks}</td>
+                    <td className="p-4 text-right font-black text-slate-950">₹{row.revenue}</td>
+                    <td className="p-4 text-right text-green-600 font-bold">₹{row.received}</td>
+                    <td className="p-4 text-right text-red-500 font-bold">₹{row.pending}</td>
+                    <td className="p-4 text-center text-slate-400 pr-6">{row.cancelled}</td>
+                  </tr>
+                ))}
+                {dailyReportData.length === 0 && (
+                  <tr>
+                    <td colSpan="9" className="p-8 text-center text-slate-400 font-medium">No order data available to generate daily report.</td>
+                  </tr>
+                )}
+              </tbody>
+              {dailyReportData.length > 0 && (
+                <tfoot>
+                  <tr className="bg-slate-50/80 border-t-2 border-slate-200 font-black text-slate-950">
+                    <td className="p-4 pl-6 uppercase text-[10px] tracking-wider text-slate-500">Totals</td>
+                    <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0)}</td>
+                    <td className="p-4 text-center text-slate-600">{dailyReportData.reduce((sum, r) => sum + r.activeOrders, 0)}</td>
+                    <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.singlePacks, 0)}</td>
+                    <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.familyPacks, 0)}</td>
+                    <td className="p-4 text-right text-brand-lime font-black">₹{dailyReportData.reduce((sum, r) => sum + r.revenue, 0)}</td>
+                    <td className="p-4 text-right text-green-600">₹{dailyReportData.reduce((sum, r) => sum + r.received, 0)}</td>
+                    <td className="p-4 text-right text-red-500">₹{dailyReportData.reduce((sum, r) => sum + r.pending, 0)}</td>
+                    <td className="p-4 text-center text-slate-500 pr-6">{dailyReportData.reduce((sum, r) => sum + r.cancelled, 0)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+  </main>
 
       {/* MANUAL ORDER ADDITION MODAL */}
       {isAddModalOpen && (
