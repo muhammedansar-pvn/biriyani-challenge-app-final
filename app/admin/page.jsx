@@ -915,6 +915,7 @@ const AdminDashboard = () => {
 
     const headers = [
       'Date',
+      'Active Areas',
       'Total Orders',
       'Active Orders',
       'Single Packs',
@@ -927,6 +928,7 @@ const AdminDashboard = () => {
 
     const rows = dailyReportData.map(r => [
       r.date,
+      `"${(r.areasList || '').replace(/"/g, '""')}"`,
       r.totalOrders,
       r.activeOrders,
       r.singlePacks,
@@ -1115,6 +1117,7 @@ const AdminDashboard = () => {
         <tr>
           <td style="text-align: center;">${idx + 1}</td>
           <td><strong>${new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</strong></td>
+          <td style="font-size: 10px; color: #555;">${r.areasList}</td>
           <td style="text-align: center;">${r.totalOrders}</td>
           <td style="text-align: center;">${r.activeOrders}</td>
           <td style="text-align: center;">${r.singlePacks}</td>
@@ -1191,21 +1194,22 @@ const AdminDashboard = () => {
             <thead>
               <tr>
                 <th style="width: 5%; text-align: center;">Sl</th>
-                <th>Date</th>
-                <th style="width: 10%; text-align: center;">Total Orders</th>
-                <th style="width: 10%; text-align: center;">Active Orders</th>
-                <th style="width: 10%; text-align: center;">Single Packs</th>
-                <th style="width: 10%; text-align: center;">Family Packs</th>
-                <th style="width: 12%; text-align: right;">Revenue</th>
-                <th style="width: 12%; text-align: right;">Received</th>
-                <th style="width: 12%; text-align: right;">Pending</th>
-                <th style="width: 9%; text-align: center;">Cancelled</th>
+                <th style="width: 15%;">Date</th>
+                <th style="width: 20%;">Active Areas</th>
+                <th style="width: 8%; text-align: center;">Total Orders</th>
+                <th style="width: 8%; text-align: center;">Active Orders</th>
+                <th style="width: 8%; text-align: center;">Single Packs</th>
+                <th style="width: 8%; text-align: center;">Family Packs</th>
+                <th style="width: 10%; text-align: right;">Revenue</th>
+                <th style="width: 10%; text-align: right;">Received</th>
+                <th style="width: 10%; text-align: right;">Pending</th>
+                <th style="width: 8%; text-align: center;">Cancelled</th>
               </tr>
             </thead>
             <tbody>
               ${rowsHtml}
               <tr class="summary-table">
-                <td colspan="2" style="text-align: right; padding-right: 15px;">TOTALS:</td>
+                <td colspan="3" style="text-align: right; padding-right: 15px;">TOTALS:</td>
                 <td style="text-align: center;">${grandOrders}</td>
                 <td style="text-align: center;">${grandActive}</td>
                 <td style="text-align: center;">${grandSingle}</td>
@@ -1306,6 +1310,7 @@ const AdminDashboard = () => {
         ? 'Unknown Date' 
         : new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       message += `📅 *${dateLabel}*\n`;
+      message += `   - Areas: ${r.areasList}\n`;
       message += `   - Orders: ${r.totalOrders} (Active: ${r.activeOrders} | Cancelled: ${r.cancelled})\n`;
       message += `   - Packs: Single: ${r.singlePacks} | Family: ${r.familyPacks}\n`;
       message += `   - Fin: Rev: ₹${r.revenue} | Rec: ₹${r.received} | Rem: ₹${r.pending}\n\n`;
@@ -1650,6 +1655,7 @@ Thank you!`;
           received: 0,
           pending: 0,
           cancelled: 0,
+          areas: new Set(),
         };
       }
 
@@ -1675,10 +1681,16 @@ Thank you!`;
         }
         stats.received += rec;
         stats.pending += Math.max(0, (o.total || 0) - rec);
+
+        const areaName = o.area ? o.area.trim() : 'No Area Specified';
+        stats.areas.add(areaName);
       }
     });
 
-    return Object.values(reportMap).sort((a, b) => b.date.localeCompare(a.date));
+    return Object.values(reportMap).map(day => ({
+      ...day,
+      areasList: Array.from(day.areas).sort().join(', ') || 'No Area Specified'
+    })).sort((a, b) => b.date.localeCompare(a.date));
   }, [orders]);
 
   const handleKeypadPress = (val) => {
@@ -2377,6 +2389,7 @@ Thank you!`;
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-650 font-black uppercase tracking-wider text-[10px]">
                   <th className="p-4 pl-6">Date</th>
+                  <th className="p-4">Active Areas</th>
                   <th className="p-4 text-center">Total Orders</th>
                   <th className="p-4 text-center">Active Orders</th>
                   <th className="p-4 text-center">Single Packs</th>
@@ -2390,6 +2403,35 @@ Thank you!`;
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                 {dailyReportData.map((row) => (
                   <tr key={row.date} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 pl-6 font-black text-slate-900 whitespace-nowrap">
+                      {row.date === 'Unknown Date' 
+                        ? 'Unknown Date' 
+                        : new Date(row.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="p-4 font-semibold text-slate-500 max-w-[200px] truncate" title={row.areasList}>
+                      {row.areasList}
+                    </td>
+                    <td className="p-4 text-center font-bold">{row.totalOrders}</td>
+                    <td className="p-4 text-center text-slate-500">{row.activeOrders}</td>
+                    <td className="p-4 text-center">{row.singlePacks}</td>
+                    <td className="p-4 text-center">{row.familyPacks}</td>
+                    <td className="p-4 text-right font-black text-slate-955">₹{row.revenue}</td>
+                    <td className="p-4 text-right text-green-600 font-bold">₹{row.received}</td>
+                    <td className="p-4 text-right text-red-500 font-bold">₹{row.pending}</td>
+                    <td className="p-4 text-center text-slate-400 pr-6">{row.cancelled}</td>
+                  </tr>
+                ))}
+                {dailyReportData.length === 0 && (
+                  <tr>
+                    <td colSpan="10" className="p-8 text-center text-slate-400 font-medium">No order data available to generate daily report.</td>
+                  </tr>
+                )}
+              </tbody>
+              {dailyReportData.length > 0 && (
+                <tfoot>
+                  <tr className="bg-slate-50/80 border-t-2 border-slate-200 font-black text-slate-950">
+                    <td className="p-4 pl-6 uppercase text-[10px] tracking-wider text-slate-500" colSpan={2}>Totals</td>
+                    <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0)}</td>
                     <td className="p-4 pl-6 font-black text-slate-900">
                       {row.date === 'Unknown Date' 
                         ? 'Unknown Date' 
