@@ -1236,6 +1236,96 @@ const AdminDashboard = () => {
     printWindow.document.close();
   };
 
+  const shareAreaWhatsApp = () => {
+    if (areaReportData.length === 0) {
+      toast.error('No data to share.');
+      return;
+    }
+
+    const grandOrders = areaReportData.reduce((sum, r) => sum + r.totalOrders, 0);
+    const grandActive = areaReportData.reduce((sum, r) => sum + r.activeOrders, 0);
+    const grandSingle = areaReportData.reduce((sum, r) => sum + r.singlePacks, 0);
+    const grandFamily = areaReportData.reduce((sum, r) => sum + r.familyPacks, 0);
+    const grandRevenue = areaReportData.reduce((sum, r) => sum + r.revenue, 0);
+    const grandReceived = areaReportData.reduce((sum, r) => sum + r.received, 0);
+    const grandPending = areaReportData.reduce((sum, r) => sum + r.pending, 0);
+    const grandCancelled = areaReportData.reduce((sum, r) => sum + r.cancelled, 0);
+
+    let message = `*🍛 BIRIYANI CHALLENGE - AREA WISE REPORT*\n`;
+    message += `----------------------------------\n`;
+    message += `*Report Date:* ${new Date().toLocaleDateString()}\n`;
+    message += `*Challenge Date:* 2026 June 11\n\n`;
+    message += `*Area-Wise Distribution:*\n`;
+
+    areaReportData.forEach(r => {
+      const areaLabel = r.areaName || 'No Area Specified';
+      message += `📍 *${areaLabel}*\n`;
+      message += `   - Orders: ${r.totalOrders} (Active: ${r.activeOrders} | Cancelled: ${r.cancelled})\n`;
+      message += `   - Packs: Single: ${r.singlePacks} | Family: ${r.familyPacks}\n`;
+      message += `   - Fin: Rev: ₹${r.revenue} | Rec: ₹${r.received} | Rem: ₹${r.pending}\n\n`;
+    });
+
+    message += `----------------------------------\n`;
+    message += `*TOTALS:*\n`;
+    message += `- Total Areas: ${areaReportData.length}\n`;
+    message += `- Total Orders: ${grandOrders} (Active: ${grandActive} | Cancelled: ${grandCancelled})\n`;
+    message += `- Single Packs: ${grandSingle} sold\n`;
+    message += `- Family Packs: ${grandFamily} sold\n`;
+    message += `- *Grand Revenue: ₹${grandRevenue}*\n`;
+    message += `- *Total Received: ₹${grandReceived}*\n`;
+    message += `- *Total Pending: ₹${grandPending}*\n\n`;
+    message += `_Generated from Admin Portal_`;
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
+
+  const shareDailyWhatsApp = () => {
+    if (dailyReportData.length === 0) {
+      toast.error('No data to share.');
+      return;
+    }
+
+    const grandOrders = dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0);
+    const grandActive = dailyReportData.reduce((sum, r) => sum + r.activeOrders, 0);
+    const grandSingle = dailyReportData.reduce((sum, r) => sum + r.singlePacks, 0);
+    const grandFamily = dailyReportData.reduce((sum, r) => sum + r.familyPacks, 0);
+    const grandRevenue = dailyReportData.reduce((sum, r) => sum + r.revenue, 0);
+    const grandReceived = dailyReportData.reduce((sum, r) => sum + r.received, 0);
+    const grandPending = dailyReportData.reduce((sum, r) => sum + r.pending, 0);
+    const grandCancelled = dailyReportData.reduce((sum, r) => sum + r.cancelled, 0);
+
+    let message = `*🍛 BIRIYANI CHALLENGE - DAILY SALES REPORT*\n`;
+    message += `----------------------------------\n`;
+    message += `*Report Date:* ${new Date().toLocaleDateString()}\n`;
+    message += `*Challenge Date:* 2026 June 11\n\n`;
+    message += `*Daily Sales Progress:*\n`;
+
+    dailyReportData.forEach(r => {
+      const dateLabel = r.date === 'Unknown Date' 
+        ? 'Unknown Date' 
+        : new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      message += `📅 *${dateLabel}*\n`;
+      message += `   - Orders: ${r.totalOrders} (Active: ${r.activeOrders} | Cancelled: ${r.cancelled})\n`;
+      message += `   - Packs: Single: ${r.singlePacks} | Family: ${r.familyPacks}\n`;
+      message += `   - Fin: Rev: ₹${r.revenue} | Rec: ₹${r.received} | Rem: ₹${r.pending}\n\n`;
+    });
+
+    message += `----------------------------------\n`;
+    message += `*TOTALS:*\n`;
+    message += `- Total Days: ${dailyReportData.length}\n`;
+    message += `- Total Orders: ${grandOrders} (Active: ${grandActive} | Cancelled: ${grandCancelled})\n`;
+    message += `- Single Packs: ${grandSingle} sold\n`;
+    message += `- Family Packs: ${grandFamily} sold\n`;
+    message += `- *Grand Revenue: ₹${grandRevenue}*\n`;
+    message += `- *Total Received: ₹${grandReceived}*\n`;
+    message += `- *Total Pending: ₹${grandPending}*\n\n`;
+    message += `_Generated from Admin Portal_`;
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
+
   const sendWhatsAppStatusUpdate = (order, type) => {
     let message = '';
     
@@ -2164,7 +2254,15 @@ Thank you!`;
               <h3 className="text-lg font-black text-slate-955">Area-wise Distribution Summary</h3>
               <p className="text-xs text-slate-500 font-bold">Consolidated order status, pack distributions, and financial statistics grouped by area/location.</p>
             </div>
-            <div className="flex gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex flex-wrap gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                onClick={shareAreaWhatsApp}
+                className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm shadow-green-600/10 active:scale-95 transition-all border-none"
+              >
+                <MessageSquare size={13} />
+                Share WhatsApp
+              </button>
+
               <button
                 onClick={downloadAreaCSV}
                 className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
@@ -2247,7 +2345,15 @@ Thank you!`;
               <h3 className="text-lg font-black text-slate-955">Daily Sales Summary</h3>
               <p className="text-xs text-slate-500 font-bold">Chronological order sales performance, pack breakdowns, and collections details grouped by day.</p>
             </div>
-            <div className="flex gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex flex-wrap gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                onClick={shareDailyWhatsApp}
+                className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm shadow-green-600/10 active:scale-95 transition-all border-none"
+              >
+                <MessageSquare size={13} />
+                Share WhatsApp
+              </button>
+
               <button
                 onClick={downloadDailyCSV}
                 className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
