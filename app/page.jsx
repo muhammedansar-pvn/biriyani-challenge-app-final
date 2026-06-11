@@ -65,6 +65,48 @@ const LandingPage = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamic system-wide settings
+  const [systemSettings, setSystemSettings] = useState({
+    isLocked: false,
+    closingTime: null,
+    customMessage: 'Ordering is currently closed for the Biriyani Challenge.'
+  });
+  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSystemSettings(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch system settings:", error);
+      } finally {
+        setIsSettingsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Scheduled auto-lock check interval
+  useEffect(() => {
+    if (!systemSettings.closingTime || systemSettings.isLocked) return;
+
+    const checkAutoLock = () => {
+      const now = new Date();
+      if (now >= new Date(systemSettings.closingTime)) {
+        setSystemSettings(prev => ({ ...prev, isLocked: true }));
+      }
+    };
+
+    checkAutoLock();
+    const interval = setInterval(checkAutoLock, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, [systemSettings.closingTime, systemSettings.isLocked]);
   
   // Tracking States
   const [isTrackOpen, setIsTrackOpen] = useState(false);
@@ -557,9 +599,9 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
                   <a
                     href="#order"
-                    className="bg-brand-lime hover:bg-brand-yellow text-white px-10 py-5 rounded-2xl font-extrabold text-lg transition-all shadow-lg shadow-brand-lime/20 w-full sm:w-auto text-center"
+                    className={`${systemSettings.isLocked ? 'bg-slate-400 hover:bg-slate-400 cursor-not-allowed shadow-none' : 'bg-brand-lime hover:bg-brand-yellow'} text-white px-10 py-5 rounded-2xl font-extrabold text-lg transition-all shadow-lg shadow-brand-lime/20 w-full sm:w-auto text-center`}
                   >
-                    Order Now
+                    {systemSettings.isLocked ? 'Ordering Closed' : 'Order Now'}
                   </a>
                 </div>
               </div>
@@ -571,27 +613,57 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
         <section id="order" className="py-20">
           <div className="max-w-4xl mx-auto px-4">
             <div className="glass-panel rounded-3xl p-8 md:p-12 shadow-2xl bg-white">
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4 border-b border-green-100/50 pb-6 text-center sm:text-left">
-                <div>
-                  <h3 className="text-3xl font-extrabold text-slate-900 mb-1">
-                    Place Your Order
+              {systemSettings.isLocked ? (
+                <div className="text-center py-10 flex flex-col items-center justify-center">
+                  <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-6 border border-red-500/20 shadow-md">
+                    <Lock size={40} className="text-red-655" />
+                  </div>
+                  <h3 className="text-3xl font-extrabold text-slate-900 mb-3">
+                    Ordering is Closed
                   </h3>
-                  <p className="text-slate-500 font-medium text-sm">
-                    Fill the simple form below to order
+                  <p className="text-slate-600 max-w-md mx-auto text-sm font-semibold leading-relaxed mb-6">
+                    {systemSettings.customMessage}
                   </p>
+                  
+                  {systemSettings.closingTime && (
+                    <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-50 border border-slate-200/60 rounded-xl text-xs text-slate-500 font-extrabold mb-8 uppercase tracking-wider" suppressHydrationWarning>
+                      <Calendar size={14} />
+                      Closed on: {new Date(systemSettings.closingTime).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsTrackOpen(true)}
+                    className="inline-flex items-center gap-2 bg-green-50/50 hover:bg-green-100 text-brand-lime font-extrabold text-sm px-6 py-3 rounded-xl border border-green-100/80 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Search size={16} />
+                    Track Existing Orders
+                  </button>
                 </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4 border-b border-green-100/50 pb-6 text-center sm:text-left">
+                    <div>
+                      <h3 className="text-3xl font-extrabold text-slate-900 mb-1">
+                        Place Your Order
+                      </h3>
+                      <p className="text-slate-500 font-medium text-sm">
+                        Fill the simple form below to order
+                      </p>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsTrackOpen(true)}
-                  className="inline-flex items-center gap-2 bg-green-50/50 hover:bg-green-100 text-brand-lime font-extrabold text-sm px-5 py-2.5 rounded-xl border border-green-100/80 transition-all cursor-pointer shadow-sm"
-                >
-                  <Search size={16} />
-                  Already Ordered? Track Here
-                </button>
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsTrackOpen(true)}
+                      className="inline-flex items-center gap-2 bg-green-50/50 hover:bg-green-100 text-brand-lime font-extrabold text-sm px-5 py-2.5 rounded-xl border border-green-100/80 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Search size={16} />
+                      Already Ordered? Track Here
+                    </button>
+                  </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+                  <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* NAME */}
                   <div>
@@ -1041,6 +1113,8 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                   )}
                 </button>
               </form>
+            </>
+          )}
             </div>
           </div>
         </section>

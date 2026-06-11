@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/mongodb';
 import Order from '@/models/Order';
+import SystemSettings from '@/models/SystemSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,17 @@ export async function POST(request) {
 
     await dbConnect();
     console.log(`[API POST /api/orders] Database connection verified successfully.`);
+
+    // Check system lock state before processing order
+    const settings = await SystemSettings.findOne();
+    if (settings) {
+      const now = new Date();
+      const isAutoLocked = settings.closingTime && now >= new Date(settings.closingTime);
+      if (settings.isLocked || isAutoLocked) {
+        console.warn(`[API POST /api/orders] Validation failed: Order rejected because placement is locked.`);
+        return Response.json({ error: settings.customMessage || "Ordering is currently closed." }, { status: 403 });
+      }
+    }
 
     const { _id, name, phone, place } = body;
     let { packs, packType, singlePacks, familyPacks, paymentStatus, advanceAmount } = body;

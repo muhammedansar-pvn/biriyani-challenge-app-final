@@ -134,6 +134,20 @@ const AdminDashboard = () => {
     agentName: ''
   });
 
+  // Dynamic system-wide settings state
+  const [systemSettings, setSystemSettings] = useState({
+    isLocked: false,
+    closingTime: null,
+    customMessage: 'Ordering is currently closed for the Biriyani Challenge.'
+  });
+  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
+  const [settingsForm, setSettingsForm] = useState({
+    isLocked: false,
+    closingTime: '',
+    customMessage: 'Ordering is currently closed for the Biriyani Challenge.'
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   // Handle Hydration / Check sessionStorage Auth on mount (clears on tab/browser close)
   useEffect(() => {
     const isAuth = sessionStorage.getItem('biriyani_admin_auth') === 'true';
@@ -222,6 +236,66 @@ const AdminDashboard = () => {
       setPinInput('');
       toast.error('Invalid PIN. Please try again.');
       setTimeout(() => setIsPinError(false), 500);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setSystemSettings(data);
+        let formattedTime = '';
+        if (data.closingTime) {
+          const date = new Date(data.closingTime);
+          const tzOffset = date.getTimezoneOffset() * 60000;
+          const localDate = new Date(date.getTime() - tzOffset);
+          formattedTime = localDate.toISOString().slice(0, 16);
+        }
+        setSettingsForm({
+          isLocked: data.isLocked,
+          closingTime: formattedTime,
+          customMessage: data.customMessage || ''
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+    } finally {
+      setIsSettingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSettings();
+    }
+  }, [isAuthenticated]);
+
+  const handleSaveSettings = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isLocked: settingsForm.isLocked,
+          closingTime: settingsForm.closingTime ? new Date(settingsForm.closingTime).toISOString() : null,
+          customMessage: settingsForm.customMessage
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSystemSettings(data);
+        toast.success("System settings updated successfully! ⚙️");
+      } else {
+        throw new Error("Failed to save");
+      }
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      toast.error("Failed to update system settings.");
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -1990,6 +2064,17 @@ Thank you!`;
             <Calendar size={16} />
             Daily Report
           </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-3 px-6 font-black text-xs sm:text-sm border-b-2 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap bg-transparent outline-none ${
+              activeTab === 'settings'
+                ? 'border-brand-lime text-brand-lime'
+                : 'border-transparent text-slate-450 hover:text-slate-700'
+            }`}
+          >
+            <Lock size={16} />
+            System Settings
+          </button>
         </div>
 
         {/* TAB CONTENTS */}
@@ -2458,6 +2543,127 @@ Thank you!`;
               )}
             </table>
           </div>
+        </div>
+      </div>
+    )}
+
+    {activeTab === 'settings' && (
+      <div className="space-y-6">
+        <div className="glass-panel rounded-3xl p-6 md:p-8 bg-white max-w-2xl mx-auto shadow-xl border border-slate-100">
+          <div className="flex items-center gap-3 border-b border-green-150/40 pb-4 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-brand-lime/10 text-brand-lime flex items-center justify-center border border-brand-lime/20 shadow-sm">
+              <Lock size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">System Lock Settings</h2>
+              <p className="text-[11px] text-slate-450 font-bold">Configure closing times and lock state for ordering form</p>
+            </div>
+          </div>
+
+          {isSettingsLoading ? (
+            <div className="py-12 text-center">
+              <div className="w-8 h-8 border-4 border-brand-lime border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-xs text-slate-400 font-bold">Loading configurations...</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveSettings} className="space-y-6">
+              {/* LOCK STATE STATUS PANEL */}
+              <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all duration-300 ${
+                settingsForm.isLocked 
+                  ? 'bg-red-50/40 border-red-200/50 text-red-800' 
+                  : 'bg-green-50/40 border-green-200/50 text-green-800'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {settingsForm.isLocked ? (
+                    <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center animate-pulse">
+                      <Lock size={16} />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                      <Unlock size={16} />
+                    </div>
+                  )}
+                  <div>
+                    <span className="block text-xs font-black uppercase tracking-wider">
+                      System Status: {settingsForm.isLocked ? 'LOCKED 🔴' : 'OPEN 🟢'}
+                    </span>
+                    <span className="block text-[10px] text-slate-450 font-bold mt-0.5">
+                      {settingsForm.isLocked 
+                        ? 'Ordering is closed. Users cannot submit new order forms.' 
+                        : 'Ordering is active. Users can place order forms on the landing page.'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Instant toggle button switch */}
+                <button
+                  type="button"
+                  onClick={() => setSettingsForm(p => ({ ...p, isLocked: !p.isLocked }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer outline-none border-none ${
+                    settingsForm.isLocked ? 'bg-red-500 shadow-inner' : 'bg-green-500 shadow-inner'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settingsForm.isLocked ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* DATE PICKER FOR AUTO LOCK */}
+              <div>
+                <label className="text-xs text-slate-650 font-black block mb-1.5 uppercase tracking-wider">
+                  🕒 Scheduled Closing Time (Auto-Lock)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={settingsForm.closingTime}
+                  onChange={(e) => setSettingsForm(p => ({ ...p, closingTime: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold"
+                />
+                <span className="block text-[10px] text-slate-400 font-bold mt-1.5 leading-normal">
+                  Configure an optional date & time for the system to automatically lock new orders. Leave blank to manage lock status manually.
+                </span>
+              </div>
+
+              {/* CUSTOM LOCK CARD MESSAGE */}
+              <div>
+                <label className="text-xs text-slate-650 font-black block mb-1.5 uppercase tracking-wider">
+                  💬 Custom Closure Message
+                </label>
+                <textarea
+                  rows={3}
+                  value={settingsForm.customMessage}
+                  onChange={(e) => setSettingsForm(p => ({ ...p, customMessage: e.target.value }))}
+                  placeholder="Ordering is currently closed for the Biriyani Challenge."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-brand-lime font-semibold leading-relaxed"
+                />
+                <span className="block text-[10px] text-slate-400 font-bold mt-1 leading-normal">
+                  Customize the alert description shown to users on the home page when ordering is locked.
+                </span>
+              </div>
+
+              {/* BUTTON SWITCH */}
+              <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={fetchSettings}
+                  disabled={isSavingSettings}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold text-xs px-5 py-3 rounded-xl border-none transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Reset Settings
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="bg-brand-lime hover:bg-brand-yellow text-white font-extrabold text-xs px-6 py-3 rounded-xl border-none transition-all cursor-pointer shadow-md shadow-brand-lime/10 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSavingSettings ? 'Saving Changes...' : 'Save Settings'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     )}
