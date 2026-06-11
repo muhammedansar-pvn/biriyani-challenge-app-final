@@ -35,7 +35,28 @@ const AREAS = [
   'Pachatiri',
   'Vettom',
   'Murivazhikal',
+  'Others',
 ];
+
+const PREDEFINED_AREAS = [
+  'Paravanna',
+  'Paravanna Town',
+  'Puthangadi',
+  'Pariyapuram',
+  'Rahmathabad',
+  'Pachatiri',
+  'Vettom',
+  'Murivazhikal',
+];
+
+const getMappedArea = (area) => {
+  if (!area) return 'Others';
+  const trimmed = area.trim();
+  if (PREDEFINED_AREAS.includes(trimmed)) {
+    return trimmed;
+  }
+  return 'Others';
+};
 
 // Resilient phone number cleaning utility
 const cleanPhoneNumber = (phone) => {
@@ -1569,8 +1590,12 @@ Thank you!`;
       order.place.toLowerCase().includes(cleanSearch) ||
       (order.agentName && order.agentName.toLowerCase().includes(cleanSearch));
 
-    const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
-    const matchesArea = areaFilter === 'All' || order.area === areaFilter;
+    const matchesStatus =
+      statusFilter === 'All' ||
+      (statusFilter === 'Paid'
+        ? (order.paymentStatus === 'Fully Paid' || order.paymentStatus === 'Paid')
+        : order.status === statusFilter);
+    const matchesArea = areaFilter === 'All' || getMappedArea(order.area) === areaFilter;
     const matchesPackType = packTypeFilter === 'All' || order.packType === packTypeFilter;
 
     return matchesSearch && matchesStatus && matchesArea && matchesPackType;
@@ -1594,43 +1619,31 @@ Thank you!`;
     });
 
     orders.forEach(o => {
-      const areaKey = o.area ? o.area.trim() : 'No Area Specified';
-      if (!reportMap[areaKey]) {
-        reportMap[areaKey] = {
-          areaName: areaKey,
-          totalOrders: 0,
-          activeOrders: 0,
-          singlePacks: 0,
-          familyPacks: 0,
-          revenue: 0,
-          received: 0,
-          pending: 0,
-          cancelled: 0,
-        };
-      }
-
+      const areaKey = getMappedArea(o.area);
       const stats = reportMap[areaKey];
-      stats.totalOrders += 1;
+      if (stats) {
+        stats.totalOrders += 1;
 
-      if (o.status === 'Cancelled') {
-        stats.cancelled += 1;
-      } else {
-        stats.activeOrders += 1;
-        const sp = o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1));
-        const fp = o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0);
-        stats.singlePacks += sp;
-        stats.familyPacks += fp;
-        stats.revenue += (o.total || 0);
+        if (o.status === 'Cancelled') {
+          stats.cancelled += 1;
+        } else {
+          stats.activeOrders += 1;
+          const sp = o.singlePacks !== undefined ? o.singlePacks : (o.packType === 'family' ? 0 : (o.packs || 1));
+          const fp = o.familyPacks !== undefined ? o.familyPacks : (o.packType === 'family' ? (o.packs || 1) : 0);
+          stats.singlePacks += sp;
+          stats.familyPacks += fp;
+          stats.revenue += (o.total || 0);
 
-        const payStatus = o.paymentStatus || 'Not Paid';
-        let rec = 0;
-        if (payStatus === 'Fully Paid') {
-          rec = (o.total || 0);
-        } else if (payStatus === 'Advance Paid') {
-          rec = (o.advanceAmount || 0);
+          const payStatus = o.paymentStatus || 'Not Paid';
+          let rec = 0;
+          if (payStatus === 'Fully Paid') {
+            rec = (o.total || 0);
+          } else if (payStatus === 'Advance Paid') {
+            rec = (o.advanceAmount || 0);
+          }
+          stats.received += rec;
+          stats.pending += Math.max(0, (o.total || 0) - rec);
         }
-        stats.received += rec;
-        stats.pending += Math.max(0, (o.total || 0) - rec);
       }
     });
 
@@ -1682,7 +1695,7 @@ Thank you!`;
         stats.received += rec;
         stats.pending += Math.max(0, (o.total || 0) - rec);
 
-        const areaName = o.area ? o.area.trim() : 'No Area Specified';
+        const areaName = getMappedArea(o.area);
         stats.areas.add(areaName);
       }
     });
@@ -2038,6 +2051,7 @@ Thank you!`;
                 <option value="Out for Delivery">Out for Delivery</option>
                 <option value="Delivered">Delivered</option>
                 <option value="Cancelled">Cancelled</option>
+                <option value="Paid">Paid</option>
               </select>
             </div>
 
@@ -2140,7 +2154,7 @@ Thank you!`;
                     </div>
                   )}
 
-                  <div className="text-[10px] text-slate-400 font-bold">
+                  <div className="text-[10px] text-slate-400 font-bold" suppressHydrationWarning>
                     Placed at: {new Date(order.createdAt).toLocaleString()}
                   </div>
                 </div>
@@ -2403,7 +2417,7 @@ Thank you!`;
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                 {dailyReportData.map((row) => (
                   <tr key={row.date} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="p-4 pl-6 font-black text-slate-900 whitespace-nowrap">
+                    <td className="p-4 pl-6 font-black text-slate-900 whitespace-nowrap" suppressHydrationWarning>
                       {row.date === 'Unknown Date' 
                         ? 'Unknown Date' 
                         : new Date(row.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
@@ -2431,32 +2445,6 @@ Thank you!`;
                 <tfoot>
                   <tr className="bg-slate-50/80 border-t-2 border-slate-200 font-black text-slate-950">
                     <td className="p-4 pl-6 uppercase text-[10px] tracking-wider text-slate-500" colSpan={2}>Totals</td>
-                    <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0)}</td>
-                    <td className="p-4 pl-6 font-black text-slate-900">
-                      {row.date === 'Unknown Date' 
-                        ? 'Unknown Date' 
-                        : new Date(row.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="p-4 text-center font-bold">{row.totalOrders}</td>
-                    <td className="p-4 text-center text-slate-500">{row.activeOrders}</td>
-                    <td className="p-4 text-center">{row.singlePacks}</td>
-                    <td className="p-4 text-center">{row.familyPacks}</td>
-                    <td className="p-4 text-right font-black text-slate-950">₹{row.revenue}</td>
-                    <td className="p-4 text-right text-green-600 font-bold">₹{row.received}</td>
-                    <td className="p-4 text-right text-red-500 font-bold">₹{row.pending}</td>
-                    <td className="p-4 text-center text-slate-400 pr-6">{row.cancelled}</td>
-                  </tr>
-                ))}
-                {dailyReportData.length === 0 && (
-                  <tr>
-                    <td colSpan="9" className="p-8 text-center text-slate-400 font-medium">No order data available to generate daily report.</td>
-                  </tr>
-                )}
-              </tbody>
-              {dailyReportData.length > 0 && (
-                <tfoot>
-                  <tr className="bg-slate-50/80 border-t-2 border-slate-200 font-black text-slate-950">
-                    <td className="p-4 pl-6 uppercase text-[10px] tracking-wider text-slate-500">Totals</td>
                     <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.totalOrders, 0)}</td>
                     <td className="p-4 text-center text-slate-600">{dailyReportData.reduce((sum, r) => sum + r.activeOrders, 0)}</td>
                     <td className="p-4 text-center">{dailyReportData.reduce((sum, r) => sum + r.singlePacks, 0)}</td>
@@ -2816,6 +2804,9 @@ Thank you!`;
                     {AREAS.map(a => (
                       <option key={a} value={a}>{a}</option>
                     ))}
+                    {editOrderForm.area && !AREAS.includes(editOrderForm.area) && (
+                      <option value={editOrderForm.area}>{editOrderForm.area}</option>
+                    )}
                   </select>
                 </div>
               </div>

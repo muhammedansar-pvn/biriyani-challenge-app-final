@@ -10,6 +10,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.0",
     "framer-motion": "^12.38.0",
+    "lightningcss": "^1.32.0",
     "lucide-react": "^1.16.0",
     "mongoose": "^8.9.3",
     "next": "^15.1.4",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^20.17.10",
     "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2"
+    "@types/react-dom": "^19.0.2",
+    "lightningcss-win32-x64-msvc": "^1.32.0"
   }
 }

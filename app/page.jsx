@@ -43,7 +43,7 @@ const AREAS = [
   'Pachatiri',
   'Vettom',
   'Murivazhikal',
-  'Other',
+  'Others',
 ];
 
 const LandingPage = () => {
@@ -156,7 +156,7 @@ const LandingPage = () => {
         setOtpCountdown(300); // Reset to 5 minutes
         setResendCooldown(30); // 30 seconds resend cooldown
 
-        const finalArea = formData.area === 'Other' ? formData.customArea.trim() : formData.area;
+        const finalArea = formData.area === 'Others' ? formData.customArea.trim() : formData.area;
 
         const packDetailsText = `${formData.familyPacks > 0 ? `🍗 *Family Pack:* ${formData.familyPacks}\n` : ''}${formData.singlePacks > 0 ? `🍛 *Single Pack:* ${formData.singlePacks}\n` : ''}`;
 
@@ -386,7 +386,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
       return false;
     }
 
-    if (data.area === 'Other' && !data.customArea.trim()) {
+    if (data.area === 'Others' && !data.customArea.trim()) {
       toast.error('Please enter your area/location');
       return false;
     }
@@ -427,7 +427,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
 
     try {
       const orderId = `BC-${Math.floor(100000 + Math.random() * 900000)}`;
-      const finalArea = updatedFormData.area === 'Other' ? updatedFormData.customArea.trim() : updatedFormData.area;
+      const finalArea = updatedFormData.area === 'Others' ? updatedFormData.customArea.trim() : updatedFormData.area;
       
       const newOrder = {
         _id: orderId,
@@ -860,7 +860,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                     </div>
 
                     <AnimatePresence>
-                      {formData.area === 'Other' && (
+                      {formData.area === 'Others' && (
                         <motion.div
                           initial={{ opacity: 0, height: 0, y: -10 }}
                           animate={{ opacity: 1, height: 'auto', y: 0 }}
@@ -874,7 +874,7 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                           </label>
                           <input
                             type="text"
-                            required={formData.area === 'Other'}
+                            required={formData.area === 'Others'}
                             value={formData.customArea}
                             onChange={(e) => setFormData(prev => ({ ...prev, customArea: e.target.value }))}
                             placeholder="Enter your area/location"
@@ -1140,8 +1140,8 @@ ${finalArea ? `🗺️ *Area:* ${finalArea}\n` : ''}
                           </div>
                           <p className="text-xs text-slate-500 flex items-center gap-1 font-medium">
                             <span>Placed at:</span>
-                            <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                            <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span suppressHydrationWarning>{new Date(order.createdAt).toLocaleDateString()}</span>
+                            <span suppressHydrationWarning>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </p>
                           {order.note && order.note !== 'None' && (
                             <p className="text-xs text-slate-400 italic mt-1 max-w-[200px] truncate">

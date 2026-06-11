@@ -17,7 +17,7 @@ const Footer = () => {
           </div>
           
           <div className="text-sm text-slate-400 font-medium flex items-center gap-4">
-            <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
+            <span suppressHydrationWarning>&copy; {new Date().getFullYear()} All rights reserved.</span>
             <span className="text-slate-300">|</span>
             <a 
               href="/admin" 

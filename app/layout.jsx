@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Alfa+Slab+One&display=swap" rel="stylesheet" />
         <link href="https://smc.org.in/fonts/keraleeyam.css" rel="stylesheet" />
       </head>
-      <body className="min-h-screen flex flex-col bg-brand-dark bg-pattern antialiased">
+      <body className="min-h-screen flex flex-col bg-brand-dark bg-pattern antialiased" suppressHydrationWarning>
         {children}
         <ToastContainer position="bottom-right" theme="dark" />
       </body>
